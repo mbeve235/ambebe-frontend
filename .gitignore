@@ -1,0 +1,45 @@
+# Node
+node_modules/
+npm-debug.log*
+.yarn-integrity
+
+# Next.js
+.next/
+out/
+
+# Build output
+dist/
+build/
+
+# Local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*
+
+# Logs
+logs/
+*.log
+pids/
+*.pid
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Deployment
+.vercel/
+
+# Misc
+.cache/

@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: 210 40% 98%;
+  --primary: 221.2 83.2% 53.3%;
+  --success: 142.1 70.6% 45.3%;
+  --text: 215.3 25% 26.7%;
+  --surface: 0 0% 100%;
+  --border: 214.3 31.8% 91.4%;
+  --muted: 215 20.2% 65.1%;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: 222.2 47.4% 11.2%;
+  --primary: 221.2 83.2% 53.3%;
+  --success: 142.1 70.6% 45.3%;
+  --text: 214.3 31.8% 91.4%;
+  --surface: 220.9 39.3% 11%;
+  --border: 217.2 32.6% 17.5%;
+  --muted: 215 20.2% 65.1%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  color: hsl(var(--text));
+  background-color: hsl(var(--bg));
+  background-image:
+    radial-gradient(900px circle at 12% -10%, hsl(var(--primary) / 0.18), transparent 60%),
+    radial-gradient(900px circle at 90% 8%, hsl(var(--success) / 0.14), transparent 55%),
+    linear-gradient(180deg, hsl(var(--bg)) 0%, hsl(var(--bg) / 0.95) 100%);
+  min-height: 100vh;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.2);
+}

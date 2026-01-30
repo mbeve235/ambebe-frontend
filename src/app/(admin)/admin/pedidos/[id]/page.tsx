@@ -1,0 +1,295 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { AdminShell } from "@/components/admin-shell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { api, getApiErrorMessage } from "@/lib/api";
+import {
+  ListResponseSchema,
+  OrderItemSchema,
+  StaffOrderSchema,
+  type OrderItem,
+  type StaffOrder
+} from "@/lib/api-schema";
+import { getAccessToken } from "@/lib/auth";
+import { formatDate, formatPrice } from "@/lib/format";
+import { getOrderItemCount, getOrderStatusInfo, getPaymentStatusInfo, getPaymentProviderLabel } from "@/lib/order-ui";
+import { useAuth } from "@/hooks/use-auth";
+
+const itemListSchema = ListResponseSchema(OrderItemSchema);
+
+const orderStatusOptions = ["PENDING", "PAID", "SHIPPED", "CANCELED"] as const;
+const paymentStatusOptions = ["PENDING", "AUTHORIZED", "CAPTURED", "FAILED", "REFUNDED"] as const;
+
+type LoadState = { status: "loading" | "ready" | "error"; error?: string };
+type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: string };
+
+export default function AdminOrderDetailPage() {
+  const auth = useAuth();
+  const params = useParams();
+  const orderId = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
+
+  const [order, setOrder] = useState<StaffOrder | null>(null);
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [itemsState, setItemsState] = useState<LoadState>({ status: "loading" });
+
+  const [status, setStatus] = useState<(typeof orderStatusOptions)[number]>("PENDING");
+  const [paymentStatus, setPaymentStatus] = useState<(typeof paymentStatusOptions)[number]>("PENDING");
+  const [statusState, setStatusState] = useState<ActionState>({ status: "idle" });
+  const [paymentState, setPaymentState] = useState<ActionState>({ status: "idle" });
+
+  const fetchOrder = useCallback(async () => {
+    if (!orderId) return;
+    const token = getAccessToken();
+    if (!token) {
+      setState({ status: "error", error: "Token ausente" });
+      return;
+    }
+
+    setState({ status: "loading" });
+    try {
+      const response = await api.get(`/staff/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const parsed = StaffOrderSchema.safeParse(response.data);
+      if (!parsed.success) {
+        throw new Error("Resposta invalida do pedido");
+      }
+      setOrder(parsed.data);
+      setStatus(parsed.data.status as (typeof orderStatusOptions)[number]);
+      setPaymentStatus(parsed.data.paymentStatus as (typeof paymentStatusOptions)[number]);
+      setState({ status: "ready" });
+    } catch (error) {
+      setState({ status: "error", error: getApiErrorMessage(error) });
+    }
+  }, [orderId]);
+
+  const fetchItems = useCallback(async () => {
+    if (!orderId) return;
+    const token = getAccessToken();
+    if (!token) {
+      setItemsState({ status: "error", error: "Token ausente" });
+      return;
+    }
+
+    setItemsState({ status: "loading" });
+    try {
+      const response = await api.get(`/staff/orders/${orderId}/items`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const parsed = itemListSchema.safeParse(response.data);
+      if (!parsed.success) {
+        throw new Error("Resposta invalida dos itens");
+      }
+      setItems(parsed.data.items);
+      setItemsState({ status: "ready" });
+    } catch (error) {
+      setItemsState({ status: "error", error: getApiErrorMessage(error) });
+    }
+  }, [orderId]);
+
+  useEffect(() => {
+    if (auth.status !== "authenticated") return;
+    fetchOrder();
+    fetchItems();
+  }, [auth.status, fetchItems, fetchOrder]);
+
+  const handleUpdateStatus = async () => {
+    if (!orderId) return;
+    const token = getAccessToken();
+    if (!token) {
+      setStatusState({ status: "error", error: "Token ausente" });
+      return;
+    }
+
+    setStatusState({ status: "loading" });
+    try {
+      await api.patch(
+        `/staff/orders/${orderId}/status`,
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setStatusState({ status: "success" });
+      await fetchOrder();
+    } catch (error) {
+      setStatusState({ status: "error", error: getApiErrorMessage(error) });
+    }
+  };
+
+  const handleUpdatePayment = async () => {
+    if (!orderId) return;
+    const token = getAccessToken();
+    if (!token) {
+      setPaymentState({ status: "error", error: "Token ausente" });
+      return;
+    }
+
+    setPaymentState({ status: "loading" });
+    try {
+      await api.patch(
+        `/staff/orders/${orderId}/payment-status`,
+        { paymentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPaymentState({ status: "success" });
+      await fetchOrder();
+    } catch (error) {
+      setPaymentState({ status: "error", error: getApiErrorMessage(error) });
+    }
+  };
+
+  return (
+    <AdminShell title="Detalhe do pedido" subtitle="Atualize status e acompanhe itens e pagamento.">
+      <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
+        <Link href="/admin/pedidos" className="text-sm text-primary">
+          Voltar para pedidos
+        </Link>
+
+        {state.status === "loading" ? (
+          <div className="mt-4 space-y-3">
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-6 w-2/3" />
+          </div>
+        ) : state.status === "error" ? (
+          <div className="mt-4 text-sm text-amber-600">{state.error}</div>
+        ) : order ? (
+          <div className="mt-4 space-y-6">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+              <div className="rounded-2xl border border-border bg-surface/70 p-4">
+                <div className="text-sm font-semibold text-text">Resumo</div>
+                <div className="mt-2 text-sm text-text">
+                  <div>Pedido: {order.id}</div>
+                  <div>Cliente: {order.user?.name || order.user?.email || order.userId}</div>
+                  <div>Itens: {getOrderItemCount(order.items)}</div>
+                  <div>Data: {formatDate(order.createdAt)}</div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge variant={getOrderStatusInfo(order.status).variant}>
+                      {getOrderStatusInfo(order.status).label}
+                    </Badge>
+                    <Badge variant={getPaymentStatusInfo(order.paymentStatus).variant}>
+                      Pagamento: {getPaymentStatusInfo(order.paymentStatus).label}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-text">Total: {formatPrice(order.total)}</div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface/70 p-4">
+                <div className="text-sm font-semibold text-text">Acoes</div>
+                <div className="mt-3 space-y-3">
+                  <Select value={status} onValueChange={(value) => setStatus(value as (typeof orderStatusOptions)[number])}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orderStatusOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {getOrderStatusInfo(option).label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="outline" onClick={handleUpdateStatus}>
+                    Atualizar status
+                  </Button>
+                  {statusState.status === "error" ? (
+                    <div className="text-xs text-amber-600">{statusState.error}</div>
+                  ) : statusState.status === "success" ? (
+                    <div className="text-xs text-success">Status atualizado.</div>
+                  ) : null}
+
+                  <Select
+                    value={paymentStatus}
+                    onValueChange={(value) => setPaymentStatus(value as (typeof paymentStatusOptions)[number])}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pagamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentStatusOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {getPaymentStatusInfo(option).label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="ghost" onClick={handleUpdatePayment}>
+                    Atualizar pagamento
+                  </Button>
+                  {paymentState.status === "error" ? (
+                    <div className="text-xs text-amber-600">{paymentState.error}</div>
+                  ) : paymentState.status === "success" ? (
+                    <div className="text-xs text-success">Pagamento atualizado.</div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface/70 p-4">
+              <div className="text-sm font-semibold text-text">Itens</div>
+              {itemsState.status === "loading" ? (
+                <div className="mt-3 space-y-3">
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-2/3" />
+                </div>
+              ) : itemsState.status === "error" ? (
+                <div className="mt-3 text-sm text-amber-600">{itemsState.error}</div>
+              ) : items.length ? (
+                <div className="mt-3 space-y-3">
+                  {items.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-border bg-surface/80 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-text">{item.nameSnapshot}</div>
+                          <div className="text-xs text-muted">SKU: {item.skuSnapshot}</div>
+                          <div className="text-xs text-muted">Quantidade: {item.quantity}</div>
+                        </div>
+                        <div className="text-right text-xs text-muted">
+                          <div>Preco unitario: {formatPrice(item.priceSnapshot)}</div>
+                          <div>Total: {formatPrice(Number(item.priceSnapshot) * item.quantity)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 text-sm text-muted">Nenhum item encontrado.</div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface/70 p-4">
+              <div className="text-sm font-semibold text-text">Pagamento</div>
+              {order.payment ? (
+                <div className="mt-2 text-sm text-text">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={getPaymentStatusInfo(order.payment.status).variant}>
+                      {getPaymentStatusInfo(order.payment.status).label}
+                    </Badge>
+                    <span className="text-xs text-muted">Valor: {formatPrice(order.payment.amount)}</span>
+                  </div>
+                  {order.payment.provider ? (
+                    <div>Provedor: {getPaymentProviderLabel(order.payment.provider) ?? order.payment.provider}</div>
+                  ) : null}
+                  {order.payment.externalRef ? <div>Referencia: {order.payment.externalRef}</div> : null}
+                </div>
+              ) : (
+                <div className="mt-2 text-sm text-muted">Sem pagamento associado.</div>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </AdminShell>
+  );
+}
