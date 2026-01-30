@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Ambebe Frontend 🚀
 
 **Frontend** da aplicação e-commerce Ambebe, construído com **Next.js (App Router)** e **TypeScript**. Este repositório contém a interface do cliente, áreas administrativas e componentes compartilhados para o projeto.
@@ -112,4 +112,4 @@ Se precisar de ajuda para configurar variáveis de ambiente, deploy ou fluxo de 
 =======
 # ambebe-frontend
 aplicacao front-end de e-commerce
->>>>>>> 343392338ba7e6bb5819fde3b5c6dc8e380df295
+
