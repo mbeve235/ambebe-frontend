@@ -350,9 +350,9 @@ const [checkoutOrder, setCheckoutOrder] = useState<Order | null>(null);
   const summaryItemCount = summary
     ? summary.items.reduce((sum, item) => sum + item.quantity, 0)
     : itemCountFallback;
-  const summarySubtotal = summary?.subtotal ?? totalFallback;
-  const summaryDiscount = summary?.discountTotal ?? 0;
-  const summaryTotal = summary?.total ?? totalFallback;
+  const summarySubtotal = Number(summary?.subtotal ?? totalFallback);
+  const summaryDiscount = Number(summary?.discountTotal ?? 0);
+  const summaryTotal = Number(summary?.total ?? totalFallback);
   const selectedProvider = paymentProviders.find((provider) => provider.value === paymentProvider);
   const providerUnavailable = selectedProvider ? !selectedProvider.available : false;
 
