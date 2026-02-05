@@ -44,7 +44,7 @@ const socialLinks = [
         )
       }
     : null
-].filter(Boolean) as { href: string; label: string; icon: JSX.Element }[];
+].filter(Boolean) as { href: string; label: string; icon: React.ReactNode }[];
 
 export function Footer() {
   return (
