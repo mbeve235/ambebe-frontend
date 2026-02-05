@@ -115,7 +115,7 @@ export function StaffShell({ title, subtitle, children }: StaffShellProps) {
         const customer = order.user?.name || order.user?.email || order.userId;
         return {
           id: `order-${order.id}`,
-          kind: "order",
+          kind: "order" as const,
           refId: order.id,
           title: `Novo pedido ${order.id.slice(0, 8)}`,
           description: `Cliente: ${customer} • Total: ${formatPrice(order.total)}`,

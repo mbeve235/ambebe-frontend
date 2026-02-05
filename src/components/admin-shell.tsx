@@ -177,7 +177,16 @@ export function AdminShell({ title, subtitle, children }: AdminShellProps) {
       setNotifications({
         status: "ready",
         count: visiblePendingOrders.length + supportUnread,
-        items: [...orderNotifications, ...supportNotifications]
+        items: [
+          ...orderNotifications.map((n) => ({
+            ...n,
+            kind: "order" as const,
+          })),
+          ...supportNotifications.map((n) => ({
+            ...n,
+            kind: "support" as const,
+          })),
+        ]
       });
     } catch (error) {
       setNotifications({ status: "error", count: 0, items: [], error: getApiErrorMessage(error) });
