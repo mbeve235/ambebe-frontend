@@ -44,7 +44,9 @@ export default function LoginPage() {
       manager: "/gestor",
       admin: "/admin"
     };
-    router.replace(redirectMap[role] ?? "/");
+    if (role) {
+      router.replace(redirectMap[role] ?? "/");
+    }
   }, [auth.role, auth.status, router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
