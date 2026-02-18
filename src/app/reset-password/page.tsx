@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, getApiErrorMessage } from "@/lib/api";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token"), [searchParams]);
 
@@ -96,6 +96,14 @@ export default function ResetPasswordPage() {
         </Link>
       </div>
     </main>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto mt-10 w-full max-w-md rounded-3xl border border-border bg-surface/80 p-8 shadow-soft" />}>
+      <ResetPasswordPageContent />
+    </Suspense>
   );
 }
 

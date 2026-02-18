@@ -178,6 +178,28 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    if (!token) {
+      setActionState((prev) => ({ ...prev, [userId]: { status: "error", error: "Token ausente" } }));
+      return;
+    }
+
+    if (!confirm("Tem certeza que deseja eliminar este utilizador?")) {
+      return;
+    }
+
+    setActionState((prev) => ({ ...prev, [userId]: { status: "loading" } }));
+    try {
+      await api.delete(`/admin/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setActionState((prev) => ({ ...prev, [userId]: { status: "success" } }));
+      await fetchUsers();
+    } catch (error) {
+      setActionState((prev) => ({ ...prev, [userId]: { status: "error", error: getApiErrorMessage(error) } }));
+    }
+  };
+
   return (
     <AdminShell title="Usuarios" subtitle="Crie contas e gerencie roles com o backend.">
       <section className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
@@ -256,6 +278,18 @@ export default function AdminUsersPage() {
                             disabled={action?.status === "loading"}
                           >
                             Atualizar senha
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteUser(user.id)}
+                            disabled={action?.status === "loading"}
+                          >
+                            Eliminar utilizador
                           </Button>
                         </div>
                       </div>

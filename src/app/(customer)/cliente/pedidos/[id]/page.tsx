@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { CustomerShell } from "@/components/customer-shell";
@@ -38,7 +38,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 const addressListSchema = ListResponseSchema(AddressSchema);
 
-export default function CustomerOrderDetailPage() {
+function CustomerOrderDetailPageContent() {
   const auth = useAuth();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -456,5 +456,13 @@ export default function CustomerOrderDetailPage() {
         ) : null}
       </section>
     </CustomerShell>
+  );
+}
+
+export default function CustomerOrderDetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <CustomerOrderDetailPageContent />
+    </Suspense>
   );
 }

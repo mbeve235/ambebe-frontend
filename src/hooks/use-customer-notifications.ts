@@ -80,7 +80,7 @@ export function useCustomerNotifications({ status, userId, role }: UseCustomerNo
 
     const productResult = results[0];
     if (!disableProductNotifications) {
-      if (productResult.status === "fulfilled") {
+      if (productResult.status === "fulfilled" && productResult.value) {
         const parsed = productListSchema.safeParse(productResult.value.data);
         if (parsed.success) {
           parsed.data.items

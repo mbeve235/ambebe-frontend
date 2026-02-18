@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, getApiErrorMessage } from "@/lib/api";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export default function VerifyEmailPage() {
+function VerifyEmailPageContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -124,6 +124,14 @@ export default function VerifyEmailPage() {
         </Link>
       </div>
     </main>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto mt-10 w-full max-w-md rounded-3xl border border-border bg-surface/80 p-8 shadow-soft" />}>
+      <VerifyEmailPageContent />
+    </Suspense>
   );
 }
 

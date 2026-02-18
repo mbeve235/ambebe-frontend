@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,7 +24,7 @@ const categoryListSchema = ListResponseSchema(CategorySchema);
 
 type LoadState = { status: "idle" | "loading" | "ready" | "error"; error?: string };
 
-export default function HomePage() {
+function HomePageContent() {
   const auth = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -318,5 +318,13 @@ export default function HomePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <HomePageContent />
+    </Suspense>
   );
 }
