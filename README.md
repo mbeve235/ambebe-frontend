@@ -1,115 +1,46 @@
+# Ambebe Frontend
 
-# Ambebe Frontend 🚀
+Frontend em Next.js 16 para o e-commerce Ambebe.
 
-**Frontend** da aplicação e-commerce Ambebe, construído com **Next.js (App Router)** e **TypeScript**. Este repositório contém a interface do cliente, áreas administrativas e componentes compartilhados para o projeto.
+## Requisitos
 
----
+- Node.js 20.9+ (recomendado Node.js 20 LTS)
+- npm 10+
 
-## 🔍 Visão geral
+## Variaveis de ambiente
 
-- Estrutura baseada em `src/app` usando o App Router do Next.js
-- Componentes reutilizáveis em `src/components`
-- Hooks e integrações da API em `src/lib`
-
----
-
-## ✨ Principais funcionalidades
-
-- Páginas públicas (produtos, categorias, ajuda)
-- Áreas protegidas para clientes, staff e admin
-- Integração com API externa via `axios`
-- Gerenciamento de autenticação via tokens no `localStorage`
-- Estilização com Tailwind CSS
-
----
-
-## 🧰 Stack tecnológica
-
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS
-- Axios, Zod, Radix UI
-
----
-
-## 🏁 Começando (local)
-
-### Requisitos
-
-- Node.js (recomendado 18+)
-- npm ou pnpm
-
-### Instalação
-
-1. Clone o repositório
+Copie `.env.example` para `.env.local` no ambiente local:
 
 ```bash
-git clone <repo-url>
-cd frontend
+cp .env.example .env.local
 ```
 
-2. Instale dependências
+Defina os valores reais:
 
-```bash
-npm install
-# ou
-# pnpm install
-```
+- `NEXT_PUBLIC_API_BASE_URL`
+- `NEXT_PUBLIC_SUPPORT_WHATSAPP`
+- `NEXT_PUBLIC_SUPPORT_EMAIL`
 
-3. Crie um arquivo `.env.local` na raiz com a variável mínima necessária:
+## Scripts
 
-```
-NEXT_PUBLIC_API_BASE_URL=https://api.exemplo.com
-```
+- `npm run dev`
+- `npm run build`
+- `npm run start`
+- `npm run lint`
 
-> A aplicação usa `NEXT_PUBLIC_API_BASE_URL` para se comunicar com a API.
+## Deploy no Vercel
 
-### Scripts úteis
+1. Importe o repositorio no Vercel.
+2. Se o repositorio tiver `backend/` e `frontend/`, configure `Root Directory` como `frontend`.
+3. Em `Environment Variables`, adicione:
+   - `NEXT_PUBLIC_API_BASE_URL`
+   - `NEXT_PUBLIC_SUPPORT_WHATSAPP`
+   - `NEXT_PUBLIC_SUPPORT_EMAIL`
+4. Build command: `npm run build` (ja definido em `vercel.json`).
+5. Install command: `npm ci` (ja definido em `vercel.json`).
+6. Deploy.
 
-- `npm run dev` — Executa o projeto em modo desenvolvimento
-- `npm run build` — Gera a build de produção
-- `npm run start` — Inicia o servidor de produção (após `build`)
-- `npm run lint` — Executa o ESLint em `src`
+## Observacoes
 
----
-
-## 🔧 Estrutura importante
-
-- `src/app` — Rotas e layouts (separado por áreas: public, customer, staff, admin)
-- `src/components` — Componentes UI e shells por área
-- `src/hooks` — Hooks personalizados (auth, cart, notifications)
-- `src/lib` — Utils, cliente da API, autenticação e formatação
-
----
-
-## 📦 Deploy
-
-Recomendado: Vercel (configurar `NEXT_PUBLIC_API_BASE_URL` nas variáveis de ambiente do projeto no provedor).
-
----
-
-## 🤝 Contribuição
-
-- Abra issues para bugs e melhorias
-- Para mudanças, crie uma branch com nome claro e submeta PRs explicando as alterações
-
----
-
-## 📝 Licença
-
-Adicione um arquivo `LICENSE` se desejar uma licença explícita (por exemplo, MIT).
-
----
-
-## 📬 Contato / Observações
-
-Se precisar de ajuda para configurar variáveis de ambiente, deploy ou fluxo de CI/CD, abra uma issue e descreva o que precisa.
-
----
-
-**Bom trabalho! ✅**
-=======
-# ambebe-frontend
-aplicacao front-end de e-commerce
-
+- O arquivo `.env` nao deve ser versionado.
+- Para alterar backend por ambiente (preview/producao), configure valores diferentes no painel do Vercel.
