@@ -161,7 +161,7 @@ export function Header({
               </div>
             </Link>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
               {showCart ? (
                 <CartButton
                   count={cartCount}
@@ -182,12 +182,12 @@ export function Header({
                       setMenuOpen(false);
                       setNotificationsOpen((prev) => !prev);
                     }}
-                    className="relative h-11 gap-2 rounded-full px-4"
+                    className="relative h-11 gap-2 rounded-full px-3 sm:px-4"
                     aria-label="Notificacoes"
                     aria-expanded={notificationsOpen}
                   >
                     <BellIcon className="h-4 w-4" />
-                    <span className="text-sm">Alertas</span>
+                    <span className="hidden text-sm sm:inline">Alertas</span>
                     {notifications?.status === "loading" ? (
                       <span className="absolute right-2 top-2 h-2 w-2 animate-pulse rounded-full bg-primary" />
                     ) : showCount ? (
@@ -198,7 +198,7 @@ export function Header({
                   </Button>
 
                   {notificationsOpen ? (
-                    <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-border bg-surface/95 p-4 shadow-soft">
+                    <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface/95 p-4 shadow-soft">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-text">Notificacoes</div>
@@ -282,13 +282,13 @@ export function Header({
                       setNotificationsOpen(false);
                       setMenuOpen((prev) => !prev);
                     }}
-                    className="gap-2"
+                    className="gap-2 px-3 sm:px-4"
                   >
                     <ProfileIcon className="h-4 w-4" />
                     {authStatus === "loading" ? (
                       <Skeleton className="h-4 w-20" />
                     ) : (
-                      <span className="flex flex-col items-start leading-tight">
+                      <span className="hidden flex-col items-start leading-tight sm:flex">
                         <span className="text-[10px] uppercase tracking-[0.18em] text-muted">Conta</span>
                         <span className="text-sm">{displayName}</span>
                       </span>
@@ -296,10 +296,10 @@ export function Header({
                   </Button>
 
                   {menuOpen ? (
-                    <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-surface/95 p-2 shadow-soft">
+                    <div className="absolute right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface/95 p-2 shadow-soft">
                       <div className="px-3 py-2">
                         <div className="text-xs text-muted">{roleLabel ?? "Usuario"}</div>
-                        <div className="text-sm font-semibold text-text">{user?.name || user?.email}</div>
+                        <div className="break-words text-sm font-semibold text-text">{user?.name || user?.email}</div>
                       </div>
                       <div className="my-2 h-px bg-border" />
                       <div className="flex flex-col gap-1">
