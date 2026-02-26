@@ -35,7 +35,8 @@ export default function StaffStockDetailPage() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [movementState, setMovementState] = useState<LoadState>({ status: "loading" });
 
-  const [delta, setDelta] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [operation, setOperation] = useState<"add" | "remove">("add");
   const [reason, setReason] = useState("");
   const [actionState, setActionState] = useState<ActionState>({ status: "idle" });
 
@@ -101,11 +102,12 @@ export default function StaffStockDetailPage() {
       return;
     }
 
-    const deltaValue = Number(delta);
-    if (Number.isNaN(deltaValue) || !reason.trim()) {
-      setActionState({ status: "error", error: "Delta ou motivo invalido" });
+    const amount = Number(quantity);
+    if (Number.isNaN(amount) || amount <= 0 || !reason.trim()) {
+      setActionState({ status: "error", error: "Informe quantidade e motivo" });
       return;
     }
+    const deltaValue = operation === "add" ? amount : -amount;
 
     setActionState({ status: "loading" });
     try {
@@ -114,7 +116,7 @@ export default function StaffStockDetailPage() {
         { stockItemId: stockId, delta: deltaValue, reason },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setDelta("");
+      setQuantity("");
       setReason("");
       setActionState({ status: "success" });
       await fetchStockItem();
@@ -125,7 +127,7 @@ export default function StaffStockDetailPage() {
   };
 
   return (
-    <StaffShell title="Detalhe do estoque" subtitle="Movimentos e saldo por variante.">
+    <StaffShell title="Ajustar estoque" subtitle="Registre entradas e saídas sem complicação.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
         <Link href="/gestor/estoque" className="text-sm text-primary">
           Voltar para estoque
@@ -141,18 +143,18 @@ export default function StaffStockDetailPage() {
         ) : item ? (
           <div className="mt-4 space-y-6">
             <div className="rounded-2xl border border-border bg-surface/70 p-4">
-              <div className="text-sm font-semibold text-text">Resumo</div>
+              <div className="text-sm font-semibold text-text">Resumo do produto</div>
               <div className="mt-2 text-sm text-text">
                 <div>Variante: {item.variant?.name ?? item.variantId}</div>
                 <div>SKU: {item.variant?.sku ?? "-"}</div>
-                <div>Em estoque: {item.onHand}</div>
+                <div>Quantidade atual: {item.onHand}</div>
                 <div>Atualizado: {formatDate(item.updatedAt)}</div>
               </div>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
               <div className="rounded-2xl border border-border bg-surface/70 p-4">
-                <div className="text-sm font-semibold text-text">Movimentos</div>
+                <div className="text-sm font-semibold text-text">Historico de ajustes</div>
                 {movementState.status === "loading" ? (
                   <div className="mt-3 space-y-3">
                     <Skeleton className="h-6 w-full" />
@@ -164,7 +166,9 @@ export default function StaffStockDetailPage() {
                   <div className="mt-3 space-y-3">
                     {movements.map((movement) => (
                       <div key={movement.id} className="rounded-2xl border border-border bg-surface/80 p-3">
-                        <div className="text-sm font-semibold text-text">Delta: {movement.delta}</div>
+                        <div className="text-sm font-semibold text-text">
+                          {movement.delta >= 0 ? "Entrada" : "Saida"}: {Math.abs(movement.delta)} un.
+                        </div>
                         <div className="text-xs text-muted">Motivo: {movement.reason}</div>
                         <div className="text-xs text-muted">Data: {formatDate(movement.createdAt)}</div>
                       </div>
@@ -176,16 +180,35 @@ export default function StaffStockDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-border bg-surface/70 p-4">
-                <div className="text-sm font-semibold text-text">Registrar movimento</div>
+                <div className="text-sm font-semibold text-text">Registrar ajuste</div>
                 <div className="mt-3 space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={operation === "add" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setOperation("add")}
+                    >
+                      Entrada
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={operation === "remove" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setOperation("remove")}
+                    >
+                      Saida
+                    </Button>
+                  </div>
                   <Input
                     type="number"
-                    placeholder="Delta (positivo ou negativo)"
-                    value={delta}
-                    onChange={(event) => setDelta(event.target.value)}
+                    min={1}
+                    placeholder="Quantidade"
+                    value={quantity}
+                    onChange={(event) => setQuantity(event.target.value)}
                   />
                   <Input
-                    placeholder="Motivo"
+                    placeholder="Motivo (ex: venda, reposicao, ajuste)"
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
                   />
@@ -196,10 +219,10 @@ export default function StaffStockDetailPage() {
                   onClick={handleCreateMovement}
                   disabled={actionState.status === "loading"}
                 >
-                  {actionState.status === "loading" ? "Salvando" : "Registrar"}
+                  {actionState.status === "loading" ? "Salvando" : "Salvar ajuste"}
                 </Button>
                 {actionState.status === "success" ? (
-                  <div className="mt-2 text-xs text-success">Movimento registrado.</div>
+                  <div className="mt-2 text-xs text-success">Ajuste registrado com sucesso.</div>
                 ) : null}
                 {actionState.status === "error" ? (
                   <div className="mt-2 text-xs text-amber-600">{actionState.error}</div>

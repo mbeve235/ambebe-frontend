@@ -127,10 +127,10 @@ export default function StaffStockPage() {
   };
 
   return (
-    <StaffShell title="Estoque" subtitle="Controle o estoque por variante em tempo real.">
+    <StaffShell title="Estoque" subtitle="Veja quantidades e ajuste de forma simples.">
       <section className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
-          <div className="text-sm font-semibold text-text">Itens de estoque</div>
+          <div className="text-sm font-semibold text-text">Produtos no estoque</div>
           {state.status === "loading" ? (
             <div className="mt-4 space-y-3">
               <Skeleton className="h-6 w-full" />
@@ -148,14 +148,14 @@ export default function StaffStockPage() {
                         {item.variant?.name ?? "Variante"}
                       </div>
                       <div className="text-xs text-muted">SKU: {item.variant?.sku ?? item.variantId}</div>
-                      <div className="text-xs text-muted">Em estoque: {item.onHand}</div>
+                      <div className="text-xs text-muted">Quantidade atual: {item.onHand}</div>
                       <div className="text-xs text-muted">Atualizado: {formatDate(item.updatedAt)}</div>
                       <Link href={`/gestor/estoque/${item.id}`} className="text-xs text-primary">
-                        Ver movimentos
+                        Abrir e ajustar
                       </Link>
                     </div>
                     <div className="rounded-full border border-border px-3 py-1 text-xs text-text">
-                      {item.onHand} unidades
+                      {item.onHand} un.
                     </div>
                   </div>
                 </div>
@@ -167,7 +167,7 @@ export default function StaffStockPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
-          <div className="text-sm font-semibold text-text">Criar item de estoque</div>
+          <div className="text-sm font-semibold text-text">Adicionar produto ao controle</div>
           <div className="mt-4 space-y-3">
             {variantState.status === "loading" ? (
               <Skeleton className="h-10 w-full" />
@@ -191,7 +191,7 @@ export default function StaffStockPage() {
             )}
 
             <Button type="button" onClick={handleCreateStock} disabled={createState.status === "loading"}>
-              {createState.status === "loading" ? "Criando" : "Criar estoque"}
+              {createState.status === "loading" ? "Salvando" : "Adicionar ao estoque"}
             </Button>
 
             {createState.status === "success" ? (
