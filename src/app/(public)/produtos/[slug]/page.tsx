@@ -285,9 +285,9 @@ export default function ProductDetailPage() {
           ) : product ? (
             <div className="mt-6 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
               <div>
-                <div className="overflow-hidden rounded-3xl border border-border bg-surface/70">
+                <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-3xl border border-border bg-surface/70 p-4">
                   {mainImage ? (
-                    <img src={mainImage} alt={product.name} className="h-full w-full object-cover" />
+                    <img src={mainImage} alt={product.name} className="h-full w-full object-contain" />
                   ) : (
                     <div className="flex aspect-[4/3] items-center justify-center text-xs text-muted">Sem imagem</div>
                   )}
@@ -300,11 +300,11 @@ export default function ProductDetailPage() {
                           key={`${src}-${index}`}
                           type="button"
                           onClick={() => setSelectedImageIndex(index)}
-                          className={`overflow-hidden rounded-2xl border bg-surface/70 ${
+                          className={`flex aspect-[4/3] items-center justify-center overflow-hidden rounded-2xl border bg-surface/70 p-1 ${
                             selectedImageIndex === index ? "border-primary" : "border-border"
                           }`}
                         >
-                          <img src={src} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
+                          <img src={src} alt={`${product.name} ${index + 1}`} className="h-full w-full object-contain" />
                         </button>
                       );
                     })}

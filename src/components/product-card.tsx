@@ -23,12 +23,12 @@ export function ProductCard({ product, onAddToCart, addState }: ProductCardProps
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-surface/80 shadow-soft transition hover:-translate-y-1 hover:shadow-glow">
-      <Link href={`/produtos/${product.slug}`} className="relative aspect-[4/3] w-full overflow-hidden bg-border/70">
+      <Link href={`/produtos/${product.slug}`} className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-border/40 p-3">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={product.name}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            className="h-full w-full object-contain transition duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
