@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { LoginResponseSchema } from "@/lib/api-schema";
-import { setTokens } from "@/lib/auth";
+import { getPendingCartIntent, setTokens } from "@/lib/auth";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,14 @@ function LoginPageContent() {
   const isAdminLogin = roleParam === "admin";
   const isManagerLogin = roleParam === "manager";
   const logoutMessage = searchParams.get("logout") === "1";
+  const intentParam = searchParams.get("intent");
+  const returnToParam = searchParams.get("returnTo");
+  const safeReturnTo = useMemo(() => {
+    if (!returnToParam) return null;
+    if (!returnToParam.startsWith("/")) return null;
+    if (returnToParam.startsWith("//")) return null;
+    return returnToParam;
+  }, [returnToParam]);
   const title = isAdminLogin
     ? "Entrar no painel administrativo"
     : isManagerLogin
@@ -33,21 +41,23 @@ function LoginPageContent() {
   const subtitle =
     isAdminLogin || isManagerLogin
       ? "Use suas credenciais reais para acessar o painel."
-      : "Autentique-se com sua conta.";
+      : intentParam === "cart"
+        ? "Entre para continuar a sua compra."
+        : "Autentique-se com sua conta.";
   const showRegister = !isAdminLogin && !isManagerLogin;
 
   useEffect(() => {
     if (auth.status !== "authenticated") return;
     const role = auth.role?.toLowerCase();
     const redirectMap: Record<string, string> = {
-      customer: "/",
+      customer: safeReturnTo ?? "/",
       manager: "/gestor",
       admin: "/admin"
     };
     if (role) {
       router.replace(redirectMap[role] ?? "/");
     }
-  }, [auth.role, auth.status, router]);
+  }, [auth.role, auth.status, router, safeReturnTo]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -65,7 +75,7 @@ function LoginPageContent() {
       const rawRole = parsed.data.user.role?.toLowerCase();
       const role = rawRole === "gestor" ? "manager" : rawRole;
       const redirectMap: Record<string, string> = {
-        customer: "/",
+        customer: safeReturnTo ?? getPendingCartIntent()?.returnTo ?? "/",
         manager: "/gestor",
         admin: "/admin"
       };

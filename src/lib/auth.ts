@@ -1,11 +1,18 @@
 const ACCESS_TOKEN_KEY = "ambebe_access_token";
 const REFRESH_TOKEN_KEY = "ambebe_refresh_token";
+const PENDING_CART_INTENT_KEY = "ambebe_pending_cart_intent";
 
 export type JwtPayload = {
   sub?: string;
   role?: string;
   exp?: number;
   iat?: number;
+};
+
+export type PendingCartIntent = {
+  productId: string;
+  returnTo: string;
+  createdAt: number;
 };
 
 function isBrowser() {
@@ -55,4 +62,27 @@ export function getRoleFromToken(token: string | null) {
   if (!role) return null;
   const normalized = role.toLowerCase();
   return normalized === "gestor" ? "manager" : normalized;
+}
+
+export function setPendingCartIntent(intent: PendingCartIntent) {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(PENDING_CART_INTENT_KEY, JSON.stringify(intent));
+}
+
+export function getPendingCartIntent(): PendingCartIntent | null {
+  if (!isBrowser()) return null;
+  const raw = window.localStorage.getItem(PENDING_CART_INTENT_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as PendingCartIntent;
+    if (!parsed?.productId || !parsed?.returnTo) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingCartIntent() {
+  if (!isBrowser()) return;
+  window.localStorage.removeItem(PENDING_CART_INTENT_KEY);
 }

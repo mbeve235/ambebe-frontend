@@ -43,10 +43,10 @@ export default function CustomerHomePage() {
     if (auth.status !== "authenticated") return;
     const token = getAccessToken();
     if (!token) {
-      setProfileState({ status: "error", error: "Token ausente" });
-      setAddressState({ status: "error", error: "Token ausente" });
-      setOrdersState({ status: "error", error: "Token ausente" });
-      setCartState({ status: "error", error: "Token ausente" });
+      setProfileState({ status: "error", error: "Sessao expirada. Inicie sessao novamente." });
+      setAddressState({ status: "error", error: "Sessao expirada. Inicie sessao novamente." });
+      setOrdersState({ status: "error", error: "Sessao expirada. Inicie sessao novamente." });
+      setCartState({ status: "error", error: "Sessao expirada. Inicie sessao novamente." });
       return;
     }
 

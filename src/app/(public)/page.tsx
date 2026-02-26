@@ -9,10 +9,16 @@ import { FiltersBar, type SortOption } from "@/components/filters-bar";
 import { ProductGrid } from "@/components/product-grid";
 import { SearchInput } from "@/components/search-input";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { CategorySchema, ListResponseSchema, ProductSchema, type Category, type Product } from "@/lib/api-schema";
-import { getAccessToken, getRefreshToken, clearTokens } from "@/lib/auth";
+import {
+  clearPendingCartIntent,
+  clearTokens,
+  getAccessToken,
+  getPendingCartIntent,
+  getRefreshToken,
+  setPendingCartIntent
+} from "@/lib/auth";
 import { useAuth } from "@/hooks/use-auth";
 import { useCustomerNotifications } from "@/hooks/use-customer-notifications";
 import { useCartCount } from "@/hooks/use-cart";
@@ -23,6 +29,7 @@ const productListSchema = ListResponseSchema(ProductSchema);
 const categoryListSchema = ListResponseSchema(CategorySchema);
 
 type LoadState = { status: "idle" | "loading" | "ready" | "error"; error?: string };
+type Notice = { tone: "success" | "warning"; text: string };
 
 function HomePageContent() {
   const auth = useAuth();
@@ -33,6 +40,10 @@ function HomePageContent() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("all");
   const [sort, setSort] = useState<SortOption>("newest");
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [lastBatchCount, setLastBatchCount] = useState(0);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesState, setCategoriesState] = useState<LoadState>({ status: "loading" });
@@ -40,6 +51,8 @@ function HomePageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsState, setProductsState] = useState<LoadState>({ status: "loading" });
   const [total, setTotal] = useState<number | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [authPromptProduct, setAuthPromptProduct] = useState<Product | null>(null);
 
   const cartState = useCartCount(auth.status, auth.role);
   const refreshCart = cartState.refresh;
@@ -59,6 +72,10 @@ function HomePageContent() {
 
     return () => clearTimeout(timer);
   }, [searchValue]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, selectedCategoryId, sort]);
 
   useEffect(() => {
     if (auth.status !== "authenticated") return;
@@ -98,11 +115,17 @@ function HomePageContent() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setProductsState({ status: "loading" });
+    if (page === 1) {
+      setProductsState({ status: "loading" });
+      setLoadMoreError(null);
+    } else {
+      setIsLoadingMore(true);
+      setLoadMoreError(null);
+    }
 
     const params: Record<string, string | number> = {
       limit: PRODUCT_LIMIT,
-      page: 1,
+      page,
       sort
     };
 
@@ -121,29 +144,78 @@ function HomePageContent() {
         if (!parsed.success) {
           throw new Error("Resposta invalida de produtos");
         }
-        setProducts(parsed.data.items);
+        setLastBatchCount(parsed.data.items.length);
         setTotal(parsed.data.total ?? parsed.data.items.length);
+        if (page === 1) {
+          setProducts(parsed.data.items);
+        } else {
+          setProducts((prev) => {
+            const seen = new Set(prev.map((item) => item.id));
+            const incoming = parsed.data.items.filter((item) => !seen.has(item.id));
+            return [...prev, ...incoming];
+          });
+        }
         setProductsState({ status: "ready" });
       })
       .catch((error) => {
         if (axios.isCancel(error)) return;
         if (axios.isAxiosError(error) && error.code === "ERR_CANCELED") return;
-        setProductsState({ status: "error", error: getApiErrorMessage(error) });
+        if (page === 1) {
+          setProductsState({ status: "error", error: getApiErrorMessage(error) });
+          return;
+        }
+        setLoadMoreError(getApiErrorMessage(error));
+      })
+      .finally(() => {
+        setIsLoadingMore(false);
       });
 
     return () => {
       controller.abort();
     };
-  }, [debouncedSearch, selectedCategoryId, sort]);
+  }, [debouncedSearch, selectedCategoryId, sort, page]);
+
+  useEffect(() => {
+    if (auth.status !== "authenticated" || auth.role !== "customer") return;
+    const intent = getPendingCartIntent();
+    if (!intent?.productId) return;
+    const token = getAccessToken();
+    if (!token) return;
+
+    clearPendingCartIntent();
+    setAuthPromptProduct(null);
+
+    (async () => {
+      try {
+        await api.post(
+          "/account/cart/items",
+          { productId: intent.productId, quantity: 1 },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setAddStates((prev) => ({ ...prev, [intent.productId]: { status: "success" } }));
+        setNotice({ tone: "success", text: "Retomamos a sua compra e adicionamos o produto ao carrinho." });
+        refreshCart();
+      } catch {
+        setNotice({
+          tone: "warning",
+          text: "Sessao iniciada, mas nao foi possivel adicionar o produto automaticamente."
+        });
+      }
+    })();
+  }, [auth.role, auth.status, refreshCart]);
 
   const handleAddToCart = useCallback(
     async (product: Product) => {
       const token = getAccessToken();
       if (!token) {
-        setAddStates((prev) => ({
-          ...prev,
-          [product.id]: { status: "error", error: "Entrar para comprar" }
-        }));
+        const returnTo =
+          typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}${window.location.hash}` : "/";
+        setPendingCartIntent({ productId: product.id, returnTo: returnTo || "/", createdAt: Date.now() });
+        setAuthPromptProduct(product);
+        setNotice({
+          tone: "warning",
+          text: "Entre na sua conta para concluir esta compra. Guardamos o produto para si."
+        });
         return;
       }
 
@@ -194,6 +266,8 @@ function HomePageContent() {
   const accountHref =
     auth.role === "admin" ? "/admin" : auth.role === "manager" ? "/gestor" : auth.role === "customer" ? "/cliente" : null;
   const hasActiveFilters = Boolean(debouncedSearch) || selectedCategoryId !== "all";
+  const hasMore =
+    typeof total === "number" ? products.length < total : productsState.status === "ready" && lastBatchCount === PRODUCT_LIMIT;
 
   const categoriesStatus =
     categoriesState.status === "loading"
@@ -201,6 +275,8 @@ function HomePageContent() {
       : categoriesState.status === "error"
         ? "error"
         : "ready";
+
+  const returnTo = encodeURIComponent("/#produtos");
 
   return (
     <div className="min-h-screen">
@@ -216,15 +292,21 @@ function HomePageContent() {
       />
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-        <section className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-border bg-surface/75 p-8 shadow-soft">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Tecnologia e confianca</p>
-            <h1 className="mt-4 font-heading text-3xl text-text sm:text-4xl">
-              Compre tecnologia de forma simples e segura.
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm text-muted">
-              Aqui voce encontra produtos reais, compara opcoes e compra com tranquilidade.
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="rounded-3xl border border-border bg-surface/80 p-6 shadow-soft sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Compra segura e rapida</p>
+            <h1 className="mt-3 font-heading text-3xl text-text sm:text-4xl">Tecnologia certa, entrega transparente e suporte real.</h1>
+            <p className="mt-3 max-w-2xl text-sm text-muted">
+              Compare produtos reais, veja precos claros e finalize a compra em poucos passos.
             </p>
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full border border-border bg-surface px-3 py-1 text-muted">Pagamento protegido</span>
+              <span className="rounded-full border border-border bg-surface px-3 py-1 text-muted">Suporte dedicado</span>
+              <span className="rounded-full border border-border bg-surface px-3 py-1 text-muted">
+                {stats.categoryCount === null ? "Catalogo em atualizacao" : `${stats.categoryCount} categorias ativas`}
+              </span>
+            </div>
 
             {logoutMessage ? (
               <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -232,8 +314,20 @@ function HomePageContent() {
               </div>
             ) : null}
 
+            {notice ? (
+              <div
+                className={`mt-4 rounded-2xl px-4 py-3 text-sm ${
+                  notice.tone === "success"
+                    ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border border-amber-200 bg-amber-50 text-amber-700"
+                }`}
+              >
+                {notice.text}
+              </div>
+            ) : null}
+
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <Button asChild size="lg">
+              <Button asChild size="lg" className="w-full sm:w-auto">
                 <Link href="/#produtos">Ver Produtos</Link>
               </Button>
               {auth.status === "unauthenticated" ? (
@@ -247,7 +341,7 @@ function HomePageContent() {
                   </Link>
                 </div>
               ) : accountHref ? (
-                <Button asChild variant="outline" size="lg">
+                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
                   <Link href={accountHref}>{auth.role === "customer" ? "Minha Conta" : "Painel"}</Link>
                 </Button>
               ) : null}
@@ -258,16 +352,16 @@ function HomePageContent() {
             <div className="font-heading text-lg text-text">Por que comprar aqui</div>
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl border border-border bg-surface/70 px-4 py-3">
-                <div className="text-sm font-semibold text-text">Entrega rapida</div>
-                <div className="text-xs text-muted">Receba seus produtos com prazos claros.</div>
+                <div className="text-sm font-semibold text-text">Entrega com previsibilidade</div>
+                <div className="text-xs text-muted">Prazos e acompanhamento claros durante todo o pedido.</div>
               </div>
               <div className="rounded-2xl border border-border bg-surface/70 px-4 py-3">
-                <div className="text-sm font-semibold text-text">Pagamento seguro</div>
-                <div className="text-xs text-muted">Seus dados protegidos em toda a compra.</div>
+                <div className="text-sm font-semibold text-text">Pagamento confiavel</div>
+                <div className="text-xs text-muted">Ambiente protegido para finalizar em seguranca.</div>
               </div>
               <div className="rounded-2xl border border-border bg-surface/70 px-4 py-3">
-                <div className="text-sm font-semibold text-text">Suporte confiavel</div>
-                <div className="text-xs text-muted">Conte conosco quando precisar.</div>
+                <div className="text-sm font-semibold text-text">Atendimento humano</div>
+                <div className="text-xs text-muted">Suporte rapido para duvidas antes e depois da compra.</div>
               </div>
             </div>
             <div className="mt-4 text-sm text-muted">
@@ -298,9 +392,10 @@ function HomePageContent() {
           <div className="mt-8 flex items-center justify-between">
             <h2 className="font-heading text-2xl text-text">Produtos</h2>
             <div className="text-xs text-muted">
-              {stats.productCount === null ? "..." : `${stats.productCount} itens`}
+              {stats.productCount === null ? `${products.length} itens` : `${products.length} de ${stats.productCount} itens`}
             </div>
           </div>
+
           <FiltersBar
             categories={categories}
             categoriesStatus={categoriesStatus}
@@ -312,7 +407,7 @@ function HomePageContent() {
             sort={sort}
             onSortChange={setSort}
             total={total ?? undefined}
-            isUpdating={productsState.status === "loading"}
+            isUpdating={productsState.status === "loading" || isLoadingMore}
           />
 
           <ProductGrid
@@ -329,12 +424,51 @@ function HomePageContent() {
               setSearchValue("");
               setSelectedCategoryId("all");
               setSort("newest");
+              setPage(1);
             }}
             addStates={addStates}
             onAddToCart={handleAddToCart}
           />
+
+          {loadMoreError ? <div className="mt-4 text-sm text-amber-600">{loadMoreError}</div> : null}
+
+          {productsState.status === "ready" && hasMore ? (
+            <div className="mt-6 flex justify-center">
+              <Button type="button" variant="outline" size="lg" disabled={isLoadingMore} onClick={() => setPage((prev) => prev + 1)}>
+                {isLoadingMore ? "Carregando..." : "Carregar mais produtos"}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </main>
+
+      {authPromptProduct && auth.status === "unauthenticated" ? (
+        <>
+          <button
+            type="button"
+            aria-label="Fechar aviso de autenticacao"
+            className="fixed inset-0 z-40 bg-black/30"
+            onClick={() => setAuthPromptProduct(null)}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-border bg-surface p-4 shadow-soft sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[380px] sm:rounded-2xl sm:border">
+            <div className="text-sm font-semibold text-text">Continue para finalizar a compra</div>
+            <p className="mt-2 text-xs text-muted">
+              Guardamos <strong>{authPromptProduct.name}</strong> para si. Entre agora para adicionar ao carrinho.
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button asChild>
+                <Link href={`/login?intent=cart&returnTo=${returnTo}`}>Entrar</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`/register?returnTo=${returnTo}`}>Criar conta</Link>
+              </Button>
+            </div>
+            <button type="button" className="mt-3 w-full text-xs text-muted hover:text-primary" onClick={() => setAuthPromptProduct(null)}>
+              Continuar sem iniciar sessao
+            </button>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
