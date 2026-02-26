@@ -9,3 +9,8 @@ git commit -m "mensagem"
 git branch -M main
 git remote add origin URL
 git push -u origin main
+
+git checkout -b feat/minha-feature
+git add .
+git commit -m "feat: descrição clara"
+git push -u origin feat/minha-feature

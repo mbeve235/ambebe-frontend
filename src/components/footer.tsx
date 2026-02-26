@@ -4,7 +4,7 @@ import { BrandLogo } from "@/components/brand-logo";
 
 const quickLinks = [
   { href: "/", label: "Inicio" },
-  { href: "/produtos", label: "Loja / Produtos" },
+  { href: "/#produtos", label: "Loja / Produtos" },
   { href: "/sobre-nos", label: "Sobre nos" },
   { href: "/categorias", label: "Categorias" },
   { href: "/ajuda", label: "Ajuda / Suporte" }
@@ -127,4 +127,3 @@ export function Footer() {
     </footer>
   );
 }
-
