@@ -198,7 +198,14 @@ export function Header({
                   </Button>
 
                   {notificationsOpen ? (
-                    <div className="fixed left-4 right-4 top-20 z-50 max-h-[70vh] overflow-y-auto rounded-2xl border border-border bg-surface/95 p-4 shadow-soft sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:max-h-none">
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Fechar notificacoes"
+                        className="fixed inset-0 z-40 bg-transparent sm:hidden"
+                        onClick={() => setNotificationsOpen(false)}
+                      />
+                      <div className="fixed left-4 right-4 top-24 z-50 max-h-[70vh] overflow-y-auto rounded-2xl border border-border bg-surface/95 p-4 shadow-soft sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:max-h-none">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-text">Notificacoes</div>
@@ -215,6 +222,13 @@ export function Header({
                             {notificationCount}
                           </div>
                         ) : null}
+                        <button
+                          type="button"
+                          className="rounded-lg border border-border px-2 py-1 text-xs text-muted sm:hidden"
+                          onClick={() => setNotificationsOpen(false)}
+                        >
+                          Fechar
+                        </button>
                       </div>
                       <div className="my-3 h-px bg-border" />
 
@@ -253,7 +267,8 @@ export function Header({
                       ) : (
                         <div className="text-sm text-muted">Nenhuma notificacao nova.</div>
                       )}
-                    </div>
+                      </div>
+                    </>
                   ) : null}
                 </div>
               ) : null}
