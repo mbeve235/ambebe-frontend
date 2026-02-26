@@ -198,7 +198,7 @@ export function Header({
                   </Button>
 
                   {notificationsOpen ? (
-                    <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface/95 p-4 shadow-soft">
+                    <div className="fixed left-4 right-4 top-20 z-50 max-h-[70vh] overflow-y-auto rounded-2xl border border-border bg-surface/95 p-4 shadow-soft sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 sm:max-h-none">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-text">Notificacoes</div>
@@ -237,7 +237,7 @@ export function Header({
                               className="block rounded-xl border border-border bg-surface/70 p-3 text-sm text-text transition hover:border-primary/50"
                             >
                               <div className="flex items-center justify-between gap-2">
-                                <div className="font-semibold text-text">{item.title}</div>
+                                <div className="min-w-0 break-words font-semibold text-text">{item.title}</div>
                                 {item.tag ? (
                                   <span className="rounded-full bg-border/70 px-2 py-1 text-[10px] font-semibold text-muted">
                                     {item.tag}
@@ -245,7 +245,7 @@ export function Header({
                                 ) : null}
                               </div>
                               {item.description ? (
-                                <div className="mt-1 text-xs text-muted">{item.description}</div>
+                                <div className="mt-1 break-words text-xs text-muted">{item.description}</div>
                               ) : null}
                             </Link>
                           ))}
