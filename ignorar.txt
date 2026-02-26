@@ -9,3 +9,5 @@ git commit -m "mensagem"
 git branch -M main
 git remote add origin URL
 git push -u origin main
+git pull origin main
+git merge minha-branch-secundaria
