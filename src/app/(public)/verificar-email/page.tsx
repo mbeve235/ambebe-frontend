@@ -2,14 +2,17 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, getApiErrorMessage } from "@/lib/api";
+import { LoginResponseSchema } from "@/lib/api-schema";
+import { setTokens } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Status = "idle" | "loading" | "success" | "error";
 
 function VerifyEmailPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -33,10 +36,23 @@ function VerifyEmailPageContent() {
       setAutoError(null);
       setAutoSuccess(null);
       try {
-        await api.post("/auth/verify-email", { token });
+        const response = await api.post("/auth/verify-email", { token });
+        const parsed = LoginResponseSchema.safeParse(response.data);
+        if (!parsed.success) {
+          throw new Error("Resposta invalida da verificacao");
+        }
+        setTokens(parsed.data.accessToken, parsed.data.refreshToken);
         if (!active) return;
         setAutoStatus("success");
-        setAutoSuccess("Email verificado com sucesso. Agora voce pode entrar.");
+        setAutoSuccess("Email verificado. Entrando automaticamente...");
+        const rawRole = parsed.data.user.role?.toLowerCase();
+        const role = rawRole === "gestor" ? "manager" : rawRole;
+        const redirectMap: Record<string, string> = {
+          customer: "/",
+          manager: "/gestor",
+          admin: "/admin"
+        };
+        router.replace(redirectMap[role] ?? "/");
       } catch (err) {
         if (!active) return;
         setAutoStatus("error");
@@ -49,7 +65,7 @@ function VerifyEmailPageContent() {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [router, token]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,9 +74,22 @@ function VerifyEmailPageContent() {
     setFormSuccess(null);
 
     try {
-      await api.post("/auth/verify-email", { email, code });
+      const response = await api.post("/auth/verify-email", { email, code });
+      const parsed = LoginResponseSchema.safeParse(response.data);
+      if (!parsed.success) {
+        throw new Error("Resposta invalida da verificacao");
+      }
+      setTokens(parsed.data.accessToken, parsed.data.refreshToken);
       setFormStatus("success");
-      setFormSuccess("Email verificado com sucesso. Agora voce pode entrar.");
+      setFormSuccess("Email verificado. Entrando automaticamente...");
+      const rawRole = parsed.data.user.role?.toLowerCase();
+      const role = rawRole === "gestor" ? "manager" : rawRole;
+      const redirectMap: Record<string, string> = {
+        customer: "/",
+        manager: "/gestor",
+        admin: "/admin"
+      };
+      router.replace(redirectMap[role] ?? "/");
     } catch (err) {
       setFormStatus("error");
       setFormError(getApiErrorMessage(err));
