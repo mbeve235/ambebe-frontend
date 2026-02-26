@@ -75,14 +75,14 @@ export default function CustomerAddressesPage() {
       await api.post(
         "/account/addresses",
         {
-          name,
-          line1,
-          line2: line2 || undefined,
-          city,
-          state: stateName,
-          postalCode,
-          country,
-          phone: phone || undefined,
+          name: name.trim(),
+          line1: line1.trim(),
+          line2: line2.trim() || undefined,
+          city: city.trim(),
+          state: stateName.trim(),
+          postalCode: postalCode.trim(),
+          country: country.trim().toUpperCase(),
+          phone: phone.trim() || undefined,
           isDefault
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -215,7 +215,13 @@ export default function CustomerAddressesPage() {
             <Input placeholder="Cidade" value={city} onChange={(event) => setCity(event.target.value)} required />
             <Input placeholder="Provincia" value={stateName} onChange={(event) => setStateName(event.target.value)} required />
             <Input placeholder="Codigo postal" value={postalCode} onChange={(event) => setPostalCode(event.target.value)} required />
-            <Input placeholder="Pais (2 letras)" value={country} onChange={(event) => setCountry(event.target.value)} required />
+            <Input
+              placeholder="Pais (2 letras, ex: MZ)"
+              value={country}
+              onChange={(event) => setCountry(event.target.value.toUpperCase())}
+              maxLength={2}
+              required
+            />
             <Input placeholder="Telefone" value={phone} onChange={(event) => setPhone(event.target.value)} />
 
             <label className="flex items-center gap-2 text-xs text-muted">
