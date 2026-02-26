@@ -193,6 +193,7 @@ function HomePageContent() {
 
   const accountHref =
     auth.role === "admin" ? "/admin" : auth.role === "manager" ? "/gestor" : auth.role === "customer" ? "/cliente" : null;
+  const hasActiveFilters = Boolean(debouncedSearch) || selectedCategoryId !== "all";
 
   const categoriesStatus =
     categoriesState.status === "loading"
@@ -277,13 +278,19 @@ function HomePageContent() {
 
         <section className="mt-6 rounded-3xl border border-border bg-surface/70 p-6 shadow-soft">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Busca rapida</div>
-          <div className="mt-3 max-w-xl">
+          <div className="mt-3 flex max-w-xl items-center gap-2">
             <SearchInput
               value={searchValue}
               onChange={setSearchValue}
               isLoading={productsState.status === "loading"}
               placeholder="Pesquise por produtos"
+              className="flex-1"
             />
+            {searchValue ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setSearchValue("")}>
+                Limpar
+              </Button>
+            ) : null}
           </div>
         </section>
 
@@ -312,6 +319,17 @@ function HomePageContent() {
             products={products}
             isLoading={productsState.status === "loading"}
             error={productsState.status === "error" ? "Nao foi possivel carregar produtos agora." : undefined}
+            noResultsMessage={
+              hasActiveFilters
+                ? "Nenhum produto encontrado com os filtros atuais."
+                : "Nenhum produto encontrado no momento."
+            }
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={() => {
+              setSearchValue("");
+              setSelectedCategoryId("all");
+              setSort("newest");
+            }}
             addStates={addStates}
             onAddToCart={handleAddToCart}
           />

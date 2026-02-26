@@ -55,6 +55,7 @@ export default function ProductDetailPage() {
   const [productState, setProductState] = useState<ProductState>({ status: "loading" });
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [addStates, setAddStates] = useState<Record<string, AddState | undefined>>({});
 
   useEffect(() => {
@@ -109,6 +110,7 @@ export default function ProductDetailPage() {
     } else {
       setSelectedVariantId(null);
     }
+    setSelectedImageIndex(0);
   }, [product?.id, product?.variants.length]);
 
   useEffect(() => {
@@ -156,7 +158,11 @@ export default function ProductDetailPage() {
   }, [product, selectedVariantId]);
 
   const displayPrice = product ? formatPrice(selectedVariant?.price ?? product.basePrice) : "";
-  const mainImage = product ? resolveAssetUrl(product.images[0]?.url ?? "") : "";
+  const productImageUrls = useMemo(
+    () => (product ? product.images.map((image) => resolveAssetUrl(image.url)).filter(Boolean) : []),
+    [product]
+  );
+  const mainImage = productImageUrls[selectedImageIndex] ?? "";
 
   const handleAddToCart = useCallback(async () => {
     if (!product) return;
@@ -286,14 +292,20 @@ export default function ProductDetailPage() {
                     <div className="flex aspect-[4/3] items-center justify-center text-xs text-muted">Sem imagem</div>
                   )}
                 </div>
-                {product.images.length > 1 ? (
-                  <div className="mt-4 grid grid-cols-4 gap-3">
-                    {product.images.slice(1, 5).map((image) => {
-                      const src = resolveAssetUrl(image.url);
+                {productImageUrls.length > 1 ? (
+                  <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-5">
+                    {productImageUrls.slice(0, 10).map((src, index) => {
                       return (
-                        <div key={image.id} className="overflow-hidden rounded-2xl border border-border bg-surface/70">
-                          {src ? <img src={src} alt={product.name} className="h-full w-full object-cover" /> : null}
-                        </div>
+                        <button
+                          key={`${src}-${index}`}
+                          type="button"
+                          onClick={() => setSelectedImageIndex(index)}
+                          className={`overflow-hidden rounded-2xl border bg-surface/70 ${
+                            selectedImageIndex === index ? "border-primary" : "border-border"
+                          }`}
+                        >
+                          <img src={src} alt={`${product.name} ${index + 1}`} className="h-full w-full object-cover" />
+                        </button>
                       );
                     })}
                   </div>
@@ -386,6 +398,11 @@ export default function ProductDetailPage() {
               products={filteredSearchResults}
               isLoading={searchState.status === "loading"}
               error={searchState.status === "error" ? "Nao foi possivel carregar sugestoes agora." : undefined}
+              noResultsMessage={
+                debouncedSearch ? "Nenhum produto relacionado encontrado para essa pesquisa." : undefined
+              }
+              hasActiveFilters={Boolean(debouncedSearch)}
+              onClearFilters={() => setSearchValue("")}
               addStates={addStates}
               onAddToCart={handleAddToCartFromList}
             />

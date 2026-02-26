@@ -1,4 +1,5 @@
 import type { Product } from "@/lib/api-schema";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard, type AddState } from "@/components/product-card";
 
@@ -6,11 +7,23 @@ type ProductGridProps = {
   products: Product[];
   isLoading: boolean;
   error?: string;
+  noResultsMessage?: string;
+  hasActiveFilters?: boolean;
+  onClearFilters?: () => void;
   addStates: Record<string, AddState | undefined>;
   onAddToCart: (product: Product) => void;
 };
 
-export function ProductGrid({ products, isLoading, error, addStates, onAddToCart }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  isLoading,
+  error,
+  noResultsMessage,
+  hasActiveFilters,
+  onClearFilters,
+  addStates,
+  onAddToCart
+}: ProductGridProps) {
   if (isLoading) {
     return (
       <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
@@ -31,7 +44,16 @@ export function ProductGrid({ products, isLoading, error, addStates, onAddToCart
   }
 
   if (!products.length) {
-    return <div className="mt-8 rounded-2xl border border-border bg-surface/70 p-6 text-sm text-muted">Nenhum produto encontrado.</div>;
+    return (
+      <div className="mt-8 rounded-2xl border border-border bg-surface/70 p-6 text-sm text-muted">
+        <div>{noResultsMessage ?? "Nenhum produto encontrado."}</div>
+        {hasActiveFilters && onClearFilters ? (
+          <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onClearFilters}>
+            Limpar filtros
+          </Button>
+        ) : null}
+      </div>
+    );
   }
 
   return (
