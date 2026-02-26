@@ -14,3 +14,5 @@ git checkout -b feat/minha-feature
 git add .
 git commit -m "feat: descrição clara"
 git push -u origin feat/minha-feature
+git pull origin main
+git merge minha-branch-secundaria
