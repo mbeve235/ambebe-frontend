@@ -43,6 +43,8 @@ type DashboardData = {
 };
 
 const STOCK_MIN = 5;
+const GROSS_MARGIN_RATE = 0.34;
+const NET_MARGIN_RATE = 0.19;
 
 const PERIODS: Array<{ value: PeriodKey; label: string }> = [
   { value: "day", label: "Hoje" },
