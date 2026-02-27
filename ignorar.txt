@@ -9,13 +9,10 @@ git commit -m "mensagem"
 git branch -M main
 git remote add origin URL
 git push -u origin main
-<<<<<<< HEAD
 git pull origin main
 git merge minha-branch-secundaria
-=======
 
 git checkout -b feat/minha-feature
 git add .
 git commit -m "feat: descrição clara"
 git push -u origin feat/minha-feature
->>>>>>> mudanca

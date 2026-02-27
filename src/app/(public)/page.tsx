@@ -22,6 +22,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useCustomerNotifications } from "@/hooks/use-customer-notifications";
 import { useCartCount } from "@/hooks/use-cart";
+import { trackEvent } from "@/lib/analytics";
 import type { AddState } from "@/components/product-card";
 
 const PRODUCT_LIMIT = 12;
@@ -156,6 +157,15 @@ function HomePageContent() {
           });
         }
         setProductsState({ status: "ready" });
+        trackEvent("product_list_loaded", {
+          page,
+          items_loaded: parsed.data.items.length,
+          visible_items: page === 1 ? parsed.data.items.length : products.length + parsed.data.items.length,
+          total_items: parsed.data.total ?? null,
+          has_search: Boolean(debouncedSearch),
+          has_category_filter: selectedCategoryId !== "all",
+          sort
+        });
       })
       .catch((error) => {
         if (axios.isCancel(error)) return;
@@ -173,7 +183,7 @@ function HomePageContent() {
     return () => {
       controller.abort();
     };
-  }, [debouncedSearch, selectedCategoryId, sort, page]);
+  }, [debouncedSearch, selectedCategoryId, sort, page, products.length]);
 
   useEffect(() => {
     if (auth.status !== "authenticated" || auth.role !== "customer") return;
@@ -195,17 +205,20 @@ function HomePageContent() {
         setAddStates((prev) => ({ ...prev, [intent.productId]: { status: "success" } }));
         setNotice({ tone: "success", text: "Retomamos a sua compra e adicionamos o produto ao carrinho." });
         refreshCart();
+        trackEvent("auth_success_return_to_product", { product_id: intent.productId, result: "success" });
       } catch {
         setNotice({
           tone: "warning",
           text: "Sessao iniciada, mas nao foi possivel adicionar o produto automaticamente."
         });
+        trackEvent("auth_success_return_to_product", { product_id: intent.productId, result: "failed_to_add" });
       }
     })();
   }, [auth.role, auth.status, refreshCart]);
 
   const handleAddToCart = useCallback(
     async (product: Product) => {
+      trackEvent("add_to_cart_click", { product_id: product.id, product_name: product.name });
       const token = getAccessToken();
       if (!token) {
         const returnTo =
@@ -216,6 +229,7 @@ function HomePageContent() {
           tone: "warning",
           text: "Entre na sua conta para concluir esta compra. Guardamos o produto para si."
         });
+        trackEvent("add_to_cart_blocked_auth", { product_id: product.id, product_name: product.name });
         return;
       }
 
@@ -229,11 +243,13 @@ function HomePageContent() {
         );
         setAddStates((prev) => ({ ...prev, [product.id]: { status: "success" } }));
         refreshCart();
+        trackEvent("add_to_cart_success", { product_id: product.id, product_name: product.name });
       } catch (error) {
         setAddStates((prev) => ({
           ...prev,
           [product.id]: { status: "error", error: getApiErrorMessage(error) }
         }));
+        trackEvent("add_to_cart_failed", { product_id: product.id, product_name: product.name });
       }
     },
     [refreshCart]
@@ -293,19 +309,32 @@ function HomePageContent() {
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-          <div className="rounded-3xl border border-border bg-surface/80 p-6 shadow-soft sm:p-8">
+          <div className="rounded-3xl border border-border bg-gradient-to-br from-surface to-primary/5 p-6 shadow-soft sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Compra segura e rapida</p>
-            <h1 className="mt-3 font-heading text-3xl text-text sm:text-4xl">Tecnologia certa, entrega transparente e suporte real.</h1>
+            <h1 className="mt-3 font-heading text-3xl text-text sm:text-4xl">
+              Tecnologia certa, entrega transparente e suporte real.
+            </h1>
             <p className="mt-3 max-w-2xl text-sm text-muted">
               Compare produtos reais, veja precos claros e finalize a compra em poucos passos.
             </p>
 
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full border border-border bg-surface px-3 py-1 text-muted">Pagamento protegido</span>
-              <span className="rounded-full border border-border bg-surface px-3 py-1 text-muted">Suporte dedicado</span>
-              <span className="rounded-full border border-border bg-surface px-3 py-1 text-muted">
-                {stats.categoryCount === null ? "Catalogo em atualizacao" : `${stats.categoryCount} categorias ativas`}
-              </span>
+            <div className="mt-5 grid gap-2 text-xs sm:grid-cols-2">
+              <div className="rounded-2xl border border-border bg-surface/85 px-3 py-2 text-muted">
+                <div className="font-semibold text-text">Pagamento protegido</div>
+                <div>Checkout com ambiente seguro</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface/85 px-3 py-2 text-muted">
+                <div className="font-semibold text-text">Suporte dedicado</div>
+                <div>Atendimento rapido em dias uteis</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface/85 px-3 py-2 text-muted">
+                <div className="font-semibold text-text">Entrega acompanhada</div>
+                <div>Atualizacoes de estado do pedido</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-surface/85 px-3 py-2 text-muted">
+                <div className="font-semibold text-text">Catalogo ativo</div>
+                <div>{stats.productCount === null ? "A carregar produtos..." : `${stats.productCount} produtos disponiveis`}</div>
+              </div>
             </div>
 
             {logoutMessage ? (
@@ -328,7 +357,12 @@ function HomePageContent() {
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <Button asChild size="lg" className="w-full sm:w-auto">
-                <Link href="/#produtos">Ver Produtos</Link>
+                <Link
+                  href="/#produtos"
+                  onClick={() => trackEvent("home_hero_cta_click", { cta: "ver_produtos", source: "hero" })}
+                >
+                  Ver Produtos
+                </Link>
               </Button>
               {auth.status === "unauthenticated" ? (
                 <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
@@ -345,6 +379,10 @@ function HomePageContent() {
                   <Link href={accountHref}>{auth.role === "customer" ? "Minha Conta" : "Painel"}</Link>
                 </Button>
               ) : null}
+            </div>
+            <div className="mt-4 text-xs text-muted">
+              Decisao rapida:
+              <span className="font-semibold text-text"> explore por categoria</span> e adicione ao carrinho em 1 clique.
             </div>
           </div>
 
@@ -434,7 +472,16 @@ function HomePageContent() {
 
           {productsState.status === "ready" && hasMore ? (
             <div className="mt-6 flex justify-center">
-              <Button type="button" variant="outline" size="lg" disabled={isLoadingMore} onClick={() => setPage((prev) => prev + 1)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                disabled={isLoadingMore}
+                onClick={() => {
+                  trackEvent("home_load_more_click", { current_page: page, visible_items: products.length });
+                  setPage((prev) => prev + 1);
+                }}
+              >
                 {isLoadingMore ? "Carregando..." : "Carregar mais produtos"}
               </Button>
             </div>
@@ -457,10 +504,32 @@ function HomePageContent() {
             </p>
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Button asChild>
-                <Link href={`/login?intent=cart&returnTo=${returnTo}`}>Entrar</Link>
+                <Link
+                  href={`/login?intent=cart&returnTo=${returnTo}`}
+                  onClick={() =>
+                    trackEvent("auth_prompt_click", {
+                      action: "login",
+                      source: "add_to_cart_prompt",
+                      product_id: authPromptProduct.id
+                    })
+                  }
+                >
+                  Entrar
+                </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href={`/register?returnTo=${returnTo}`}>Criar conta</Link>
+                <Link
+                  href={`/register?returnTo=${returnTo}`}
+                  onClick={() =>
+                    trackEvent("auth_prompt_click", {
+                      action: "register",
+                      source: "add_to_cart_prompt",
+                      product_id: authPromptProduct.id
+                    })
+                  }
+                >
+                  Criar conta
+                </Link>
               </Button>
             </div>
             <button type="button" className="mt-3 w-full text-xs text-muted hover:text-primary" onClick={() => setAuthPromptProduct(null)}>

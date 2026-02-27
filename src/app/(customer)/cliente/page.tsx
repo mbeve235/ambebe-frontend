@@ -17,6 +17,7 @@ import {
   type Profile
 } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
+import { trackEvent } from "@/lib/analytics";
 import { formatDate, formatPrice } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -122,6 +123,10 @@ export default function CustomerHomePage() {
     return sorted[0] ?? null;
   }, [orders]);
 
+  const pendingPaymentOrder = useMemo(() => {
+    return orders.find((order) => order.status === "PENDING" || order.paymentStatus === "PENDING" || order.paymentStatus === "AUTHORIZED") ?? null;
+  }, [orders]);
+
   const roleLabel = useMemo(() => {
     const value = (profile?.role ?? auth.role ?? "").toString().toLowerCase();
     if (value === "admin") return "Admin";
@@ -130,31 +135,82 @@ export default function CustomerHomePage() {
   }, [auth.role, profile?.role]);
 
   const nextStep = useMemo(() => {
+    if (pendingPaymentOrder) {
+      return {
+        title: "Concluir pagamento pendente",
+        description: "Tem um pedido em aberto. Finalize agora para garantir disponibilidade e expedicao.",
+        href: `/cliente/pedidos/${pendingPaymentOrder.id}`,
+        action: "Continuar pagamento",
+        secondaryHref: "/cliente/pedidos",
+        secondaryAction: "Ver todos os pedidos"
+      };
+    }
     if (cartState.status === "ready" && (cartCount ?? 0) > 0) {
       return {
         title: "Finalize sua compra",
         description: "Voce ja tem itens no carrinho. Revise e conclua seu pedido.",
         href: "/cliente/carrinho",
-        action: "Ir para o carrinho"
+        action: "Ir para o carrinho",
+        secondaryHref: "/#produtos",
+        secondaryAction: "Continuar a comprar"
+      };
+    }
+    if (latestOrder) {
+      return {
+        title: "Comprar novamente",
+        description: "Reveja o ultimo pedido para repetir os itens com mais rapidez.",
+        href: `/cliente/pedidos/${latestOrder.id}`,
+        action: "Repetir compra",
+        secondaryHref: "/#produtos",
+        secondaryAction: "Explorar novos produtos"
       };
     }
     return {
       title: "Continue explorando produtos",
       description: "Veja o catalogo completo e escolha o que deseja comprar.",
       href: "/#produtos",
-      action: "Ver produtos"
+      action: "Ver produtos",
+      secondaryHref: "/cliente/pedidos",
+      secondaryAction: "Acompanhar pedidos"
     };
-  }, [cartCount, cartState.status]);
+  }, [cartCount, cartState.status, latestOrder, pendingPaymentOrder]);
 
   return (
     <CustomerShell title="Resumo do cliente" subtitle="Dados reais da sua conta AMBEBE.">
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-soft">
-          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Proximo passo</div>
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            {pendingPaymentOrder ? "Acao prioritaria" : "Proximo passo"}
+          </div>
           <div className="mt-3 text-2xl font-semibold text-text">{nextStep.title}</div>
           <p className="mt-2 text-sm text-muted">{nextStep.description}</p>
-          <Button asChild className="mt-4">
-            <Link href={nextStep.href}>{nextStep.action}</Link>
+          <Button asChild className="mt-4 w-full sm:w-auto">
+            <Link
+              href={nextStep.href}
+              onClick={() =>
+                trackEvent("customer_dashboard_primary_cta_click", {
+                  cta: nextStep.action,
+                  href: nextStep.href,
+                  has_pending_payment: Boolean(pendingPaymentOrder)
+                })
+              }
+            >
+              {nextStep.action}
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="mt-2 w-full sm:mt-3 sm:w-auto">
+            <Link
+              href={nextStep.secondaryHref}
+              onClick={() =>
+                trackEvent("customer_dashboard_secondary_cta_click", {
+                  cta: nextStep.secondaryAction,
+                  href: nextStep.secondaryHref,
+                  has_pending_payment: Boolean(pendingPaymentOrder)
+                })
+              }
+            >
+              {nextStep.secondaryAction}
+            </Link>
           </Button>
         </div>
 
@@ -244,9 +300,25 @@ export default function CustomerHomePage() {
           ) : (
             <div className="mt-4 text-sm text-muted">Nenhum pedido encontrado.</div>
           )}
-          <Link href="/cliente/pedidos" className="mt-4 inline-block text-sm text-primary">
-            Ver detalhes
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link href="/cliente/pedidos" className="text-sm text-primary">
+              Ver detalhes
+            </Link>
+            {latestOrder ? (
+              <Link
+                href={`/cliente/pedidos/${latestOrder.id}`}
+                className="text-sm text-primary"
+                onClick={() =>
+                  trackEvent("reorder_click", {
+                    source: "customer_dashboard_last_order",
+                    order_id: latestOrder.id
+                  })
+                }
+              >
+                Comprar novamente
+              </Link>
+            ) : null}
+          </div>
         </div>
       </section>
     </CustomerShell>
