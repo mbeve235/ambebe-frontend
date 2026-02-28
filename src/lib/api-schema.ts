@@ -319,6 +319,130 @@ export const AvailabilitySchema = z.object({
   onHand: z.number()
 });
 
+export const DashboardActionSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  count: z.number(),
+  href: z.string(),
+  severity: z.enum(["high", "medium", "low"])
+});
+
+export const DashboardCategoryMixSchema = z.object({
+  label: z.string(),
+  revenue: DecimalSchema,
+  sharePct: z.number(),
+  deltaPct: z.number()
+});
+
+export const DashboardChannelMixSchema = z.object({
+  label: z.string(),
+  revenue: DecimalSchema
+});
+
+export const StaffDashboardSchema = z.object({
+  meta: z.object({
+    generatedAt: z.string(),
+    period: z.enum(["day", "month", "quarter"]),
+    window: z.enum(["24h", "7d", "30d"]),
+    dataFreshness: z.string(),
+    metricVersion: z.string()
+  }),
+  cockpit: z.object({
+    criticalStockCount: z.number(),
+    delayedOrdersCount: z.number(),
+    recognizedRevenueToday: DecimalSchema,
+    recognizedRevenueMonth: DecimalSchema,
+    receivablesPipeline: DecimalSchema,
+    actions: z.array(DashboardActionSchema)
+  }),
+  salesHealth: z.object({
+    recognizedRevenue: DecimalSchema,
+    authorizedRevenue: DecimalSchema,
+    expectedRevenue: DecimalSchema,
+    deltaPct: z.number(),
+    avgTicketRecognized: DecimalSchema,
+    successRatePct: z.number(),
+    categoryMix: z.array(DashboardCategoryMixSchema),
+    channelMix: z.array(DashboardChannelMixSchema)
+  }),
+  operations: z.object({
+    pendingOrders: z.number(),
+    delayedOrders: z.number(),
+    problemOrders: z.number(),
+    refunds: z.object({
+      count: z.number(),
+      total: DecimalSchema
+    }),
+    topPending: z.array(StaffOrderSchema),
+    topDelayed: z.array(StaffOrderSchema),
+    topProblem: z.array(StaffOrderSchema)
+  }),
+  inventory: z.object({
+    totalStockValue: DecimalSchema,
+    criticalCount: z.number(),
+    warningCount: z.number(),
+    fastMovingCount: z.number(),
+    fastMovingThreshold24h: z.number(),
+    criticalItems: z.array(StockItemSchema),
+    fastMoving: z.array(
+      z.object({
+        id: z.string(),
+        qty: z.number(),
+        name: z.string()
+      })
+    )
+  }),
+  finance: z.object({
+    revenueToday: DecimalSchema,
+    revenueWeek: DecimalSchema,
+    revenueMonth: DecimalSchema,
+    grossEstimateMonth: DecimalSchema,
+    netEstimateMonth: DecimalSchema,
+    capturedPayments: DecimalSchema,
+    pipelinePayments: DecimalSchema,
+    projRevenue: DecimalSchema,
+    projNet: DecimalSchema
+  }),
+  products: z.object({
+    topProducts: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        qty: z.number(),
+        revenue: DecimalSchema,
+        profitEstimate: DecimalSchema
+      })
+    ),
+    lowPerformance: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        sold: z.number()
+      })
+    ),
+    highMarginEstimated: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        price: DecimalSchema,
+        grossEstimate: DecimalSchema
+      })
+    )
+  }),
+  forecast: z.object({
+    demand30: DecimalSchema,
+    demand60: DecimalSchema,
+    demand90: DecimalSchema,
+    categoryTrend: z.array(
+      z.object({
+        label: z.string(),
+        revenue: DecimalSchema,
+        deltaPct: z.number()
+      })
+    )
+  })
+});
+
 export type Category = z.infer<typeof CategorySchema>;
 export type ProductImage = z.infer<typeof ProductImageSchema>;
 export type ProductVariant = z.infer<typeof ProductVariantSchema>;
@@ -351,3 +475,4 @@ export type StockMovement = z.infer<typeof StockMovementSchema>;
 export type StaffOrder = z.infer<typeof StaffOrderSchema>;
 export type PaymentWithOrder = z.infer<typeof PaymentWithOrderSchema>;
 export type Availability = z.infer<typeof AvailabilitySchema>;
+export type StaffDashboard = z.infer<typeof StaffDashboardSchema>;

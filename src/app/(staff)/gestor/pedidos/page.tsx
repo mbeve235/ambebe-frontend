@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StaffShell } from "@/components/staff-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,26 @@ type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 
 export default function StaffOrdersPage() {
   const auth = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState<StaffOrder[]>([]);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [emailFilter, setEmailFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+
+  const preset = searchParams.get("preset") || "";
+  const channelFilter = searchParams.get("channel") || "";
+
+  const channelFromProvider = (provider?: string | null) => {
+    const p = (provider || "").toUpperCase();
+    if (p.includes("MPESA") || p.includes("EMOLA")) return "Mobile";
+    if (p.includes("PAYPAL")) return "Marketplace";
+    if (p.includes("FACEBOOK") || p.includes("INSTAGRAM")) return "Social";
+    if (p.includes("STRIPE") || p.includes("COD")) return "Site";
+    return "Other";
+  };
 
   const fetchOrders = useCallback(async (filters?: { email?: string; status?: string; paymentStatus?: string }) => {
     const token = getAccessToken();
@@ -59,37 +75,84 @@ export default function StaffOrdersPage() {
 
   useEffect(() => {
     if (auth.status !== "authenticated") return;
-    fetchOrders();
-  }, [auth.status, fetchOrders]);
+    const email = searchParams.get("email") || "";
+    const status = searchParams.get("status") || "all";
+    const paymentStatus = searchParams.get("paymentStatus") || "all";
+    setEmailFilter(email);
+    setStatusFilter(status);
+    setPaymentFilter(paymentStatus);
+    fetchOrders({
+      email: email.trim() || undefined,
+      status: status === "all" ? undefined : status,
+      paymentStatus: paymentStatus === "all" ? undefined : paymentStatus
+    });
+  }, [auth.status, fetchOrders, searchParams]);
 
   const sortedOrders = useMemo(() => {
-    return [...orders].sort((a, b) => {
+    const now = Date.now();
+    const filtered = orders.filter((order) => {
+      if (channelFilter && channelFromProvider(order.payment?.provider) !== channelFilter) {
+        return false;
+      }
+      if (preset === "pending") {
+        return order.status === "PENDING" || order.paymentStatus === "PENDING";
+      }
+      if (preset === "problem") {
+        return order.paymentStatus === "FAILED" || order.paymentStatus === "REFUNDED";
+      }
+      if (preset === "delayed") {
+        const createdAt = new Date(order.createdAt).getTime();
+        const ageHours = (now - createdAt) / (1000 * 60 * 60);
+        return order.status !== "SHIPPED" && order.status !== "CANCELED" && ageHours >= 48;
+      }
+      return true;
+    });
+
+    return [...filtered].sort((a, b) => {
       const aTime = new Date(a.createdAt).getTime();
       const bTime = new Date(b.createdAt).getTime();
       return bTime - aTime;
     });
-  }, [orders]);
+  }, [orders, preset, channelFilter]);
 
-  const handleFilter = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleFilter = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await fetchOrders({
-      email: emailFilter.trim() || undefined,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      paymentStatus: paymentFilter === "all" ? undefined : paymentFilter
-    });
+    const next = new URLSearchParams(searchParams.toString());
+    const email = emailFilter.trim();
+    if (email) next.set("email", email);
+    else next.delete("email");
+
+    if (statusFilter !== "all") next.set("status", statusFilter);
+    else next.delete("status");
+
+    if (paymentFilter !== "all") next.set("paymentStatus", paymentFilter);
+    else next.delete("paymentStatus");
+
+    router.replace(next.toString() ? `${pathname}?${next.toString()}` : pathname);
   };
 
-  const handleClear = async () => {
+  const handleClear = () => {
     setEmailFilter("");
     setStatusFilter("all");
     setPaymentFilter("all");
-    await fetchOrders();
+    router.replace(pathname);
   };
 
   return (
     <StaffShell title="Pedidos" subtitle="Acompanhe pedidos e status de pagamento.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
         <div className="text-sm font-semibold text-text">Filtros</div>
+        {preset || channelFilter ? (
+          <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-text">
+            Contexto ativo:
+            {preset ? ` preset=${preset}` : ""}
+            {channelFilter ? ` canal=${channelFilter}` : ""}
+            {" | "}
+            <Link href="/gestor/pedidos" className="text-primary">
+              limpar contexto
+            </Link>
+          </div>
+        ) : null}
         <form className="mt-3 flex flex-wrap items-end gap-3" onSubmit={handleFilter}>
           <div className="min-w-[220px]">
             <div className="text-xs text-muted">Email do cliente</div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { StaffShell } from "@/components/staff-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,13 +16,14 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, getApiErrorMessage } from "@/lib/api";
-import { CategorySchema, ListResponseSchema, ProductSchema, type Category, type Product } from "@/lib/api-schema";
+import { CategorySchema, ListResponseSchema, ProductSchema, StaffOrderSchema, type Category, type Product, type StaffOrder } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 
 const productListSchema = ListResponseSchema(ProductSchema);
 const categoryListSchema = ListResponseSchema(CategorySchema);
+const orderListSchema = ListResponseSchema(StaffOrderSchema);
 
 const statusOptions = ["DRAFT", "ACTIVE", "ARCHIVED"] as const;
 
@@ -31,8 +33,10 @@ type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: s
 
 export default function StaffProductsPage() {
   const auth = useAuth();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [orders, setOrders] = useState<StaffOrder[]>([]);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [categoryState, setCategoryState] = useState<LoadState>({ status: "loading" });
 
@@ -74,6 +78,23 @@ export default function StaffProductsPage() {
     }
   }, []);
 
+  const fetchOrders = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const response = await api.get("/staff/orders", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const parsed = orderListSchema.safeParse(response.data);
+      if (!parsed.success) {
+        throw new Error("Resposta invalida de pedidos");
+      }
+      setOrders(parsed.data.items);
+    } catch {
+      setOrders([]);
+    }
+  }, []);
+
   const fetchCategories = useCallback(async () => {
     const token = getAccessToken();
     if (!token) {
@@ -101,7 +122,51 @@ export default function StaffProductsPage() {
     if (auth.status !== "authenticated") return;
     fetchProducts();
     fetchCategories();
-  }, [auth.status, fetchCategories, fetchProducts]);
+    fetchOrders();
+  }, [auth.status, fetchCategories, fetchOrders, fetchProducts]);
+
+  const preset = searchParams.get("preset") || "";
+  const categoryFilter = searchParams.get("category") || "";
+  const productIdFilter = searchParams.get("productId") || "";
+  const windowFilter = searchParams.get("window") || "7d";
+
+  const visibleProducts = useMemo(() => {
+    let list = [...products];
+
+    if (categoryFilter) {
+      const normalized = categoryFilter.toLowerCase();
+      list = list.filter((product) =>
+        product.categories.some((cat) => cat.category.name.toLowerCase() === normalized)
+      );
+    }
+
+    if (productIdFilter) {
+      list = list.filter((product) => product.id === productIdFilter);
+    }
+
+    if (preset === "high-margin") {
+      list = [...list].sort((a, b) => Number(b.basePrice) - Number(a.basePrice));
+    }
+
+    if (preset === "low-performance") {
+      const now = Date.now();
+      const windowMs =
+        windowFilter === "24h" ? 24 * 60 * 60 * 1000 : windowFilter === "30d" ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+      const start = now - windowMs;
+      const soldMap = new Map<string, number>();
+      for (const order of orders) {
+        const orderTime = new Date(order.createdAt).getTime();
+        if (Number.isNaN(orderTime) || orderTime < start) continue;
+        for (const item of order.items ?? []) {
+          if (!item.productId) continue;
+          soldMap.set(item.productId, (soldMap.get(item.productId) || 0) + Number(item.quantity || 0));
+        }
+      }
+      list = list.filter((product) => (soldMap.get(product.id) || 0) === 0);
+    }
+
+    return list;
+  }, [categoryFilter, orders, preset, productIdFilter, products, windowFilter]);
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories((prev) =>
@@ -179,6 +244,18 @@ export default function StaffProductsPage() {
       <section className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
           <div className="text-sm font-semibold text-text">Produtos cadastrados</div>
+          {preset || categoryFilter || productIdFilter ? (
+            <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-text">
+              Contexto ativo:
+              {preset ? ` preset=${preset}` : ""}
+              {categoryFilter ? ` categoria=${categoryFilter}` : ""}
+              {productIdFilter ? ` produto=${productIdFilter.slice(0, 8)}` : ""}
+              {" | "}
+              <Link href="/gestor/produtos" className="text-primary">
+                limpar contexto
+              </Link>
+            </div>
+          ) : null}
           {state.status === "loading" ? (
             <div className="mt-4 space-y-3">
               <Skeleton className="h-6 w-full" />
@@ -186,9 +263,9 @@ export default function StaffProductsPage() {
             </div>
           ) : state.status === "error" ? (
             <div className="mt-4 text-sm text-amber-600">{state.error}</div>
-          ) : products.length ? (
+          ) : visibleProducts.length ? (
             <div className="mt-4 space-y-4">
-              {products.map((product) => {
+              {visibleProducts.map((product) => {
                 const badgeVariant =
                   product.status === "ACTIVE" ? "success" : product.status === "ARCHIVED" ? "neutral" : "warning";
                 return (
@@ -213,7 +290,7 @@ export default function StaffProductsPage() {
               })}
             </div>
           ) : (
-            <div className="mt-4 text-sm text-muted">Nenhum produto encontrado.</div>
+            <div className="mt-4 text-sm text-muted">Nenhum produto encontrado para este contexto.</div>
           )}
         </div>
 
