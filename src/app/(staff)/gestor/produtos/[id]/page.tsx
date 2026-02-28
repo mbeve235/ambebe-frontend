@@ -37,9 +37,32 @@ type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 
 type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: string };
 
-type VariantUpdate = { sku: string; name: string; price: string; attributes: string };
+type VariantUpdate = { sku: string; name: string; price: string; costPrice: string; attributes: string };
 
 type ImageUpdate = { url: string; sortOrder: string };
+
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getVariantCostPrice(variant: ProductVariant): number | null {
+  const direct = toNumber(variant.costPrice);
+  if (direct !== null) return direct;
+  if (!variant.attributes || typeof variant.attributes !== "object" || Array.isArray(variant.attributes)) return null;
+  const attrs = variant.attributes as Record<string, unknown>;
+  return toNumber(attrs.costPrice ?? attrs.cost ?? attrs.cmv);
+}
+
+function formatMarginPercent(price: unknown, costPrice: number | null): string {
+  const sale = toNumber(price);
+  if (sale === null || sale <= 0 || costPrice === null) return "N/A";
+  return `${(((sale - costPrice) / sale) * 100).toFixed(1)}%`;
+}
 
 export default function StaffProductDetailPage() {
   const auth = useAuth();
@@ -66,6 +89,7 @@ export default function StaffProductDetailPage() {
   const [newVariantSku, setNewVariantSku] = useState("");
   const [newVariantName, setNewVariantName] = useState("");
   const [newVariantPrice, setNewVariantPrice] = useState("");
+  const [newVariantCostPrice, setNewVariantCostPrice] = useState("");
   const [newVariantAttributes, setNewVariantAttributes] = useState("{}");
   const [variantCreateState, setVariantCreateState] = useState<ActionState>({ status: "idle" });
 
@@ -90,10 +114,12 @@ export default function StaffProductDetailPage() {
     setSelectedCategories(data.categories.map((cat) => cat.categoryId));
     setVariantUpdates(
       data.variants.reduce((acc, variant) => {
+        const inferredCost = getVariantCostPrice(variant);
         acc[variant.id] = {
           sku: variant.sku,
           name: variant.name,
           price: String(variant.price),
+          costPrice: inferredCost === null ? "" : String(inferredCost),
           attributes: JSON.stringify(variant.attributes ?? {})
         };
         return acc;
@@ -226,6 +252,12 @@ export default function StaffProductDetailPage() {
       setVariantActions((prev) => ({ ...prev, [variantId]: { status: "error", error: "Preco invalido" } }));
       return;
     }
+    const hasCostPrice = update.costPrice.trim().length > 0;
+    const costPriceValue = hasCostPrice ? Number(update.costPrice) : undefined;
+    if ((hasCostPrice && Number.isNaN(costPriceValue)) || (typeof costPriceValue === "number" && costPriceValue < 0)) {
+      setVariantActions((prev) => ({ ...prev, [variantId]: { status: "error", error: "CMV invalido" } }));
+      return;
+    }
 
     let attributes: Record<string, unknown> = {};
     if (update.attributes.trim()) {
@@ -245,6 +277,7 @@ export default function StaffProductDetailPage() {
           sku: update.sku,
           name: update.name,
           price: priceValue,
+          costPrice: costPriceValue,
           attributes
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -282,6 +315,12 @@ export default function StaffProductDetailPage() {
       setVariantCreateState({ status: "error", error: "Preco invalido" });
       return;
     }
+    const hasCostPrice = newVariantCostPrice.trim().length > 0;
+    const costPriceValue = hasCostPrice ? Number(newVariantCostPrice) : undefined;
+    if ((hasCostPrice && Number.isNaN(costPriceValue)) || (typeof costPriceValue === "number" && costPriceValue < 0)) {
+      setVariantCreateState({ status: "error", error: "CMV invalido" });
+      return;
+    }
 
     let attributes: Record<string, unknown> = {};
     if (newVariantAttributes.trim()) {
@@ -301,6 +340,7 @@ export default function StaffProductDetailPage() {
           sku: newVariantSku,
           name: newVariantName,
           price: priceValue,
+          costPrice: costPriceValue,
           attributes
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -308,6 +348,7 @@ export default function StaffProductDetailPage() {
       setNewVariantSku("");
       setNewVariantName("");
       setNewVariantPrice("");
+      setNewVariantCostPrice("");
       setNewVariantAttributes("{}");
       setVariantCreateState({ status: "success" });
       await fetchProduct();
@@ -553,8 +594,15 @@ export default function StaffProductDetailPage() {
                   {product.variants.map((variant: ProductVariant) => {
                     const update = variantUpdates[variant.id];
                     const action = variantActions[variant.id];
+                    const currentCostPrice = getVariantCostPrice(variant);
+                    const currentCostPriceInput = currentCostPrice === null ? "" : String(currentCostPrice);
+                    const currentMargin = formatMarginPercent(variant.price, currentCostPrice);
                     return (
                       <div key={variant.id} className="rounded-2xl border border-border bg-surface/80 p-4">
+                        <div className="mb-3 text-xs text-muted">
+                          CMV atual: {currentCostPrice === null ? "N/A" : formatPrice(currentCostPrice)} | Margem estimada:{" "}
+                          {currentMargin}
+                        </div>
                         <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
                           <Input
                             value={update?.sku ?? variant.sku}
@@ -565,6 +613,7 @@ export default function StaffProductDetailPage() {
                                   sku: event.target.value,
                                   name: update?.name ?? variant.name,
                                   price: update?.price ?? String(variant.price),
+                                  costPrice: update?.costPrice ?? currentCostPriceInput,
                                   attributes: update?.attributes ?? JSON.stringify(variant.attributes ?? {})
                                 }
                               }))
@@ -579,13 +628,14 @@ export default function StaffProductDetailPage() {
                                   sku: update?.sku ?? variant.sku,
                                   name: event.target.value,
                                   price: update?.price ?? String(variant.price),
+                                  costPrice: update?.costPrice ?? currentCostPriceInput,
                                   attributes: update?.attributes ?? JSON.stringify(variant.attributes ?? {})
                                 }
                               }))
                             }
                           />
                         </div>
-                        <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]">
+                        <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_1fr_1fr]">
                           <Input
                             type="number"
                             value={update?.price ?? String(variant.price)}
@@ -596,12 +646,32 @@ export default function StaffProductDetailPage() {
                                   sku: update?.sku ?? variant.sku,
                                   name: update?.name ?? variant.name,
                                   price: event.target.value,
+                                  costPrice: update?.costPrice ?? currentCostPriceInput,
                                   attributes: update?.attributes ?? JSON.stringify(variant.attributes ?? {})
                                 }
                               }))
                             }
                             min="0"
                             step="0.01"
+                          />
+                          <Input
+                            type="number"
+                            value={update?.costPrice ?? currentCostPriceInput}
+                            onChange={(event) =>
+                              setVariantUpdates((prev) => ({
+                                ...prev,
+                                [variant.id]: {
+                                  sku: update?.sku ?? variant.sku,
+                                  name: update?.name ?? variant.name,
+                                  price: update?.price ?? String(variant.price),
+                                  costPrice: event.target.value,
+                                  attributes: update?.attributes ?? JSON.stringify(variant.attributes ?? {})
+                                }
+                              }))
+                            }
+                            min="0"
+                            step="0.01"
+                            placeholder="CMV (costPrice)"
                           />
                           <Input
                             value={update?.attributes ?? JSON.stringify(variant.attributes ?? {})}
@@ -612,6 +682,7 @@ export default function StaffProductDetailPage() {
                                   sku: update?.sku ?? variant.sku,
                                   name: update?.name ?? variant.name,
                                   price: update?.price ?? String(variant.price),
+                                  costPrice: update?.costPrice ?? currentCostPriceInput,
                                   attributes: event.target.value
                                 }
                               }))
@@ -670,6 +741,14 @@ export default function StaffProductDetailPage() {
                     placeholder="Preco"
                     value={newVariantPrice}
                     onChange={(event) => setNewVariantPrice(event.target.value)}
+                    min="0"
+                    step="0.01"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="CMV (costPrice)"
+                    value={newVariantCostPrice}
+                    onChange={(event) => setNewVariantCostPrice(event.target.value)}
                     min="0"
                     step="0.01"
                   />

@@ -42,6 +42,7 @@ export const ProductVariantSchema = z.object({
   sku: z.string(),
   name: z.string(),
   price: DecimalSchema,
+  costPrice: DecimalSchema.optional(),
   attributes: z.unknown(),
   createdAt: z.string(),
   updatedAt: z.string()

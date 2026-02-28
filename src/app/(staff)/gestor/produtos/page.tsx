@@ -31,6 +31,29 @@ type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 
 type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: string };
 
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getVariantCostPrice(variant: Product["variants"][number]): number | null {
+  const direct = toNumber(variant.costPrice);
+  if (direct !== null) return direct;
+  if (!variant.attributes || typeof variant.attributes !== "object" || Array.isArray(variant.attributes)) return null;
+  const attrs = variant.attributes as Record<string, unknown>;
+  return toNumber(attrs.costPrice ?? attrs.cost ?? attrs.cmv);
+}
+
+function formatMarginPercent(price: unknown, costPrice: number | null): string {
+  const sale = toNumber(price);
+  if (sale === null || sale <= 0 || costPrice === null) return "N/A";
+  return `${(((sale - costPrice) / sale) * 100).toFixed(1)}%`;
+}
+
 function StaffProductsPageContent() {
   const auth = useAuth();
   const searchParams = useSearchParams();
@@ -50,6 +73,7 @@ function StaffProductsPageContent() {
   const [variantSku, setVariantSku] = useState("");
   const [variantName, setVariantName] = useState("");
   const [variantPrice, setVariantPrice] = useState("");
+  const [variantCostPrice, setVariantCostPrice] = useState("");
   const [variantAttributes, setVariantAttributes] = useState("{}");
 
   const [createState, setCreateState] = useState<ActionState>({ status: "idle" });
@@ -184,8 +208,14 @@ function StaffProductsPageContent() {
 
     const baseValue = Number(basePrice);
     const variantValue = Number(variantPrice);
-    if (Number.isNaN(baseValue) || Number.isNaN(variantValue)) {
+    const hasCostValue = variantCostPrice.trim().length > 0;
+    const costValue = hasCostValue ? Number(variantCostPrice) : undefined;
+    if (Number.isNaN(baseValue) || Number.isNaN(variantValue) || (hasCostValue && Number.isNaN(costValue))) {
       setFormError("Preco invalido");
+      return;
+    }
+    if (typeof costValue === "number" && costValue < 0) {
+      setFormError("Custo nao pode ser negativo");
       return;
     }
 
@@ -216,6 +246,7 @@ function StaffProductsPageContent() {
               sku: variantSku,
               name: variantName,
               price: variantValue,
+              costPrice: costValue,
               attributes
             }
           ]
@@ -231,6 +262,7 @@ function StaffProductsPageContent() {
       setVariantSku("");
       setVariantName("");
       setVariantPrice("");
+      setVariantCostPrice("");
       setVariantAttributes("{}");
       setCreateState({ status: "success" });
       await fetchProducts();
@@ -268,6 +300,25 @@ function StaffProductsPageContent() {
               {visibleProducts.map((product) => {
                 const badgeVariant =
                   product.status === "ACTIVE" ? "success" : product.status === "ARCHIVED" ? "neutral" : "warning";
+                const variantsWithCost = product.variants
+                  .map((variant) => ({
+                    price: toNumber(variant.price),
+                    costPrice: getVariantCostPrice(variant)
+                  }))
+                  .filter((entry) => entry.price !== null && entry.price > 0 && entry.costPrice !== null);
+                const avgCost =
+                  variantsWithCost.length > 0
+                    ? variantsWithCost.reduce((sum, item) => sum + (item.costPrice ?? 0), 0) / variantsWithCost.length
+                    : null;
+                const avgMargin =
+                  variantsWithCost.length > 0
+                    ? variantsWithCost.reduce(
+                        (sum, item) => sum + ((((item.price ?? 0) - (item.costPrice ?? 0)) / (item.price ?? 1)) * 100),
+                        0
+                      ) / variantsWithCost.length
+                    : null;
+                const sampleVariant = product.variants[0];
+                const sampleVariantCost = sampleVariant ? getVariantCostPrice(sampleVariant) : null;
                 return (
                   <div key={product.id} className="rounded-2xl border border-border bg-surface/70 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -279,6 +330,16 @@ function StaffProductsPageContent() {
                           Categorias: {product.categories.map((cat) => cat.category.name).join(", ") || "Sem categoria"}
                         </div>
                         <div className="text-xs text-muted">Variantes: {product.variants.length}</div>
+                        <div className="text-xs text-muted">
+                          CMV medio: {avgCost === null ? "N/A" : formatPrice(avgCost)} | Margem estimada media:{" "}
+                          {avgMargin === null ? "N/A" : `${avgMargin.toFixed(1)}%`}
+                        </div>
+                        {sampleVariant ? (
+                          <div className="text-xs text-muted">
+                            Exemplo variante: CMV {sampleVariantCost === null ? "N/A" : formatPrice(sampleVariantCost)} | Margem{" "}
+                            {formatMarginPercent(sampleVariant.price, sampleVariantCost)}
+                          </div>
+                        ) : null}
                         <Link href={`/gestor/produtos/${product.id}`} className="text-xs text-primary">
                           Ver detalhes
                         </Link>
@@ -376,7 +437,15 @@ function StaffProductsPageContent() {
                   required
                 />
                 <Input
-                  placeholder='Atributos JSON (ex: {"cor":"azul"})'
+                  type="number"
+                  placeholder="Custo (costPrice) ex: 1200.00"
+                  value={variantCostPrice}
+                  onChange={(event) => setVariantCostPrice(event.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+                <Input
+                  placeholder='Atributos JSON opcionais (ex: {"cor":"azul"})'
                   value={variantAttributes}
                   onChange={(event) => setVariantAttributes(event.target.value)}
                 />
