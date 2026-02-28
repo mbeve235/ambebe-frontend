@@ -245,8 +245,9 @@ export default function ProductDetailPage() {
     }
   }, [auth.refresh, refreshCart, router]);
 
-  const productAvailability = product?.status === "ACTIVE" ? "Disponivel" : "Indisponivel";
-  const availabilityVariant = product?.status === "ACTIVE" ? "success" : "warning";
+  const isProductAvailable = Boolean(product && product.status === "ACTIVE" && product.variants.length > 0);
+  const productAvailability = isProductAvailable ? "Disponivel" : "Esgotado";
+  const availabilityVariant = isProductAvailable ? "success" : "warning";
   const addState = product ? addStates[product.id] : undefined;
 
   return (
@@ -365,7 +366,7 @@ export default function ProductDetailPage() {
 
                 <Button
                   onClick={handleAddToCart}
-                  disabled={product.status !== "ACTIVE" || addState?.status === "loading"}
+                  disabled={!isProductAvailable || addState?.status === "loading"}
                 >
                   {addState?.status === "loading" ? "Adicionando" : "Adicionar ao carrinho"}
                 </Button>

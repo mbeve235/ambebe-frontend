@@ -18,8 +18,10 @@ type ProductCardProps = {
 export function ProductCard({ product, onAddToCart, addState }: ProductCardProps) {
   const imageUrl = resolveAssetUrl(product.images[0]?.url ?? "");
   const isActive = product.status === "ACTIVE";
-  const availabilityLabel = isActive ? "Disponivel" : "Indisponivel";
-  const availabilityVariant = isActive ? "success" : "warning";
+  const hasStock = product.variants.length > 0;
+  const isAvailable = isActive && hasStock;
+  const availabilityLabel = isAvailable ? "Disponivel" : "Esgotado";
+  const availabilityVariant = isAvailable ? "success" : "warning";
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-surface/80 shadow-soft transition hover:-translate-y-1 hover:shadow-glow">
@@ -53,7 +55,7 @@ export function ProductCard({ product, onAddToCart, addState }: ProductCardProps
           <div className="text-xl font-semibold text-text">{formatPrice(product.basePrice)}</div>
           <Button
             onClick={() => onAddToCart(product)}
-            disabled={!isActive || addState?.status === "loading"}
+            disabled={!isAvailable || addState?.status === "loading"}
           >
             {addState?.status === "loading" ? "Adicionando" : "Adicionar ao carrinho"}
           </Button>
