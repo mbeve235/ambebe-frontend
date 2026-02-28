@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { StaffShell } from "@/components/staff-shell";
@@ -31,7 +31,7 @@ type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 
 type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: string };
 
-export default function StaffProductsPage() {
+function StaffProductsPageContent() {
   const auth = useAuth();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
@@ -397,5 +397,13 @@ export default function StaffProductsPage() {
         </div>
       </section>
     </StaffShell>
+  );
+}
+
+export default function StaffProductsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <StaffProductsPageContent />
+    </Suspense>
   );
 }

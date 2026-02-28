@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StaffShell } from "@/components/staff-shell";
@@ -58,7 +58,7 @@ function LoadingGrid() {
   );
 }
 
-export default function StaffOverviewPage() {
+function StaffOverviewPageContent() {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -372,5 +372,13 @@ export default function StaffOverviewPage() {
         </div>
       ) : null}
     </StaffShell>
+  );
+}
+
+export default function StaffOverviewPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <StaffOverviewPageContent />
+    </Suspense>
   );
 }

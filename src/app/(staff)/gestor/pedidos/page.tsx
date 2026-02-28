@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StaffShell } from "@/components/staff-shell";
@@ -26,7 +26,7 @@ const orderListSchema = ListResponseSchema(StaffOrderSchema);
 
 type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 
-export default function StaffOrdersPage() {
+function StaffOrdersPageContent() {
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -250,5 +250,13 @@ export default function StaffOrdersPage() {
         )}
       </section>
     </StaffShell>
+  );
+}
+
+export default function StaffOrdersPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <StaffOrdersPageContent />
+    </Suspense>
   );
 }
