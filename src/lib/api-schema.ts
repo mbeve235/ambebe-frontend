@@ -345,7 +345,15 @@ export const StaffDashboardSchema = z.object({
     period: z.enum(["day", "month", "quarter"]),
     window: z.enum(["24h", "7d", "30d"]),
     dataFreshness: z.string(),
-    metricVersion: z.string()
+    metricVersion: z.string(),
+    assumptions: z
+      .object({
+        taxRate: z.number(),
+        operatingExpenseRate: z.number(),
+        freightSubsidyPerOrder: z.number(),
+        projectionGrowthWeight: z.number()
+      })
+      .optional()
   }),
   cockpit: z.object({
     criticalStockCount: z.number(),
@@ -363,7 +371,16 @@ export const StaffDashboardSchema = z.object({
     avgTicketRecognized: DecimalSchema,
     successRatePct: z.number(),
     categoryMix: z.array(DashboardCategoryMixSchema),
-    channelMix: z.array(DashboardChannelMixSchema)
+    channelMix: z.array(DashboardChannelMixSchema),
+    revenueGross: DecimalSchema,
+    revenueNet: DecimalSchema,
+    cmv: DecimalSchema,
+    gatewayFees: DecimalSchema,
+    taxes: DecimalSchema,
+    freightSubsidy: DecimalSchema,
+    grossProfit: DecimalSchema,
+    operationalProfit: DecimalSchema,
+    netProfit: DecimalSchema
   }),
   operations: z.object({
     pendingOrders: z.number(),
@@ -401,7 +418,16 @@ export const StaffDashboardSchema = z.object({
     capturedPayments: DecimalSchema,
     pipelinePayments: DecimalSchema,
     projRevenue: DecimalSchema,
-    projNet: DecimalSchema
+    projNet: DecimalSchema,
+    profitModel: z.object({
+      realizedNetProfitMonth: DecimalSchema,
+      projectedNetProfitMonth: DecimalSchema,
+      projectedRevenueRemaining: DecimalSchema,
+      projectedOrdersRemaining: z.number(),
+      projectedTicket: DecimalSchema,
+      recentGrowthPct: z.number(),
+      averageCancelRatePct: z.number()
+    })
   }),
   products: z.object({
     topProducts: z.array(

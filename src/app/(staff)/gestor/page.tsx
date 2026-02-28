@@ -194,6 +194,18 @@ function StaffOverviewPageContent() {
               <Metric title="Ticket medio reconhecido" value={formatPrice(data.salesHealth.avgTicketRecognized)} />
               <Metric title="Taxa de sucesso de pedidos" value={`${data.salesHealth.successRatePct.toFixed(1)}%`} />
             </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Metric title="Receita bruta" value={formatPrice(data.salesHealth.revenueGross)} />
+              <Metric title="Receita liquida" value={formatPrice(data.salesHealth.revenueNet)} />
+              <Metric title="CMV" value={formatPrice(data.salesHealth.cmv)} />
+              <Metric title="Lucro bruto" value={formatPrice(data.salesHealth.grossProfit)} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Metric title="Taxas gateway" value={formatPrice(data.salesHealth.gatewayFees)} />
+              <Metric title="Impostos estimados" value={formatPrice(data.salesHealth.taxes)} />
+              <Metric title="Frete subsidiado" value={formatPrice(data.salesHealth.freightSubsidy)} />
+              <Metric title="Lucro operacional" value={formatPrice(data.salesHealth.operationalProfit)} helper={`Lucro liquido estimado: ${formatPrice(data.salesHealth.netProfit)}`} />
+            </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl border border-border bg-surface/80 p-5">
                 <div className="text-sm font-semibold text-text">Mix por categoria</div>
@@ -302,13 +314,19 @@ function StaffOverviewPageContent() {
               <Metric title="Receita hoje" value={formatPrice(data.finance.revenueToday)} />
               <Metric title="Receita semana" value={formatPrice(data.finance.revenueWeek)} />
               <Metric title="Receita mes" value={formatPrice(data.finance.revenueMonth)} />
-              <Metric title="Lucro liquido estimado (mes)" value={formatPrice(data.finance.netEstimateMonth)} />
+              <Metric title="Lucro liquido realizado (mes)" value={formatPrice(data.finance.profitModel.realizedNetProfitMonth)} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Metric title="Lucro bruto estimado (mes)" value={formatPrice(data.finance.grossEstimateMonth)} />
+              <Metric title="Lucro bruto (mes)" value={formatPrice(data.finance.grossEstimateMonth)} />
               <Metric title="Recebido (capturado)" value={formatPrice(data.finance.capturedPayments)} />
               <Metric title="Pipeline a receber" value={formatPrice(data.finance.pipelinePayments)} />
-              <Metric title="Projecao de lucro" value={formatPrice(data.finance.projNet)} helper={`Receita projetada: ${formatPrice(data.finance.projRevenue)}`} />
+              <Metric title="Projecao de lucro (mes)" value={formatPrice(data.finance.projNet)} helper={`Receita projetada: ${formatPrice(data.finance.projRevenue)}`} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Metric title="Pedidos projetados restantes" value={data.finance.profitModel.projectedOrdersRemaining.toFixed(1)} />
+              <Metric title="Ticket projetado" value={formatPrice(data.finance.profitModel.projectedTicket)} />
+              <Metric title="Crescimento recente" value={`${data.finance.profitModel.recentGrowthPct.toFixed(1)}%`} />
+              <Metric title="Cancelamento medio" value={`${data.finance.profitModel.averageCancelRatePct.toFixed(1)}%`} />
             </div>
           </section>
 
