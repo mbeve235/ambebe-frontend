@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { StaffShell } from "@/components/staff-shell";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -15,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { ListResponseSchema, ProductSchema, StockItemSchema, type Product, type StockItem } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 
 const stockListSchema = ListResponseSchema(StockItemSchema);
@@ -26,6 +27,36 @@ type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: string };
 
 type VariantOption = { id: string; label: string };
+
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getVariantCostPrice(variant: StockItem["variant"]): number | null {
+  if (!variant) return null;
+  const direct = toNumber(variant.costPrice);
+  if (direct !== null) return direct;
+  if (!variant.attributes || typeof variant.attributes !== "object" || Array.isArray(variant.attributes)) return null;
+  const attrs = variant.attributes as Record<string, unknown>;
+  return toNumber(attrs.costPrice ?? attrs.cost ?? attrs.cmv);
+}
+
+function getMarginPercent(price: unknown, costPrice: number | null): string {
+  const sale = toNumber(price);
+  if (sale === null || sale <= 0 || costPrice === null) return "N/A";
+  return `${(((sale - costPrice) / sale) * 100).toFixed(1)}%`;
+}
+
+function getStockStatus(onHand: number) {
+  if (onHand <= 0) return { label: "Ruptura", variant: "warning" as const };
+  if (onHand <= 5) return { label: "Em risco", variant: "neutral" as const };
+  return { label: "Saudavel", variant: "success" as const };
+}
 
 export default function StaffStockPage() {
   const auth = useAuth();
@@ -127,7 +158,7 @@ export default function StaffStockPage() {
   };
 
   return (
-    <StaffShell title="Estoque" subtitle="Veja quantidades e ajuste de forma simples.">
+    <StaffShell title="Estoque" subtitle="Monitore saldo, risco de ruptura e ajustes.">
       <section className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
           <div className="text-sm font-semibold text-text">Produtos no estoque</div>
@@ -140,26 +171,37 @@ export default function StaffStockPage() {
             <div className="mt-4 text-sm text-amber-600">{state.error}</div>
           ) : items.length ? (
             <div className="mt-4 space-y-4">
-              {items.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-border bg-surface/70 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="text-sm font-semibold text-text">
-                        {item.variant?.name ?? "Variante"}
+              {items.map((item) => {
+                const stockStatus = getStockStatus(item.onHand);
+                const costPrice = getVariantCostPrice(item.variant);
+                const margin = getMarginPercent(item.variant?.price, costPrice);
+                return (
+                  <div key={item.id} className="rounded-2xl border border-border bg-surface/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-semibold text-text">
+                          {item.variant?.name ?? "Variante"}
+                        </div>
+                        <div className="text-xs text-muted">SKU: {item.variant?.sku ?? item.variantId}</div>
+                        <div className="text-xs text-muted">Quantidade atual: {item.onHand}</div>
+                        <div className="text-xs text-muted">
+                          CMV: {costPrice === null ? "N/A" : formatPrice(costPrice)} | Margem estimada: {margin}
+                        </div>
+                        <div className="text-xs text-muted">Atualizado: {formatDate(item.updatedAt)}</div>
+                        <Link href={`/gestor/estoque/${item.id}`} className="text-xs text-primary">
+                          Abrir e ajustar
+                        </Link>
                       </div>
-                      <div className="text-xs text-muted">SKU: {item.variant?.sku ?? item.variantId}</div>
-                      <div className="text-xs text-muted">Quantidade atual: {item.onHand}</div>
-                      <div className="text-xs text-muted">Atualizado: {formatDate(item.updatedAt)}</div>
-                      <Link href={`/gestor/estoque/${item.id}`} className="text-xs text-primary">
-                        Abrir e ajustar
-                      </Link>
-                    </div>
-                    <div className="rounded-full border border-border px-3 py-1 text-xs text-text">
-                      {item.onHand} un.
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+                        <div className="rounded-full border border-border px-3 py-1 text-xs text-text">
+                          {item.onHand} un.
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="mt-4 text-sm text-muted">Nenhum item de estoque encontrado.</div>

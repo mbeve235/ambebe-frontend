@@ -10,6 +10,7 @@ import { api, getApiErrorMessage } from "@/lib/api";
 import { PaymentWithOrderSchema, type PaymentWithOrder } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
 import { formatDate, formatPrice } from "@/lib/format";
+import { getOrderStatusInfo, getPaymentProviderLabel, getPaymentStatusInfo } from "@/lib/order-ui";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function StaffPaymentDetailPage() {
@@ -52,10 +53,10 @@ export default function StaffPaymentDetailPage() {
     fetchPayment();
   }, [auth.status, fetchPayment]);
 
-  const badgeVariant = payment?.status === "CAPTURED" ? "success" : "warning";
+  const paymentInfo = getPaymentStatusInfo(payment?.status);
 
   return (
-    <StaffShell title="Detalhe do pagamento" subtitle="Acompanhe status e pedido associado.">
+    <StaffShell title="Detalhe do pagamento" subtitle="Consulte status, valor e pedido associado.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
         <Link href="/gestor/pagamentos" className="text-sm text-primary">
           Voltar para pagamentos
@@ -75,7 +76,7 @@ export default function StaffPaymentDetailPage() {
                 <div className="text-sm text-muted">Pagamento</div>
                 <div className="text-lg font-semibold text-text">{payment.id}</div>
               </div>
-              <Badge variant={badgeVariant}>{payment.status}</Badge>
+              <Badge variant={paymentInfo.variant}>{paymentInfo.label}</Badge>
             </div>
 
             <div className="rounded-2xl border border-border bg-surface/70 p-4">
@@ -84,7 +85,7 @@ export default function StaffPaymentDetailPage() {
                 <div>Valor: {formatPrice(payment.amount)}</div>
                 <div>Data: {formatDate(payment.createdAt)}</div>
                 <div>Pedido: {payment.order?.id ?? payment.orderId}</div>
-                {payment.provider ? <div>Provedor: {payment.provider}</div> : null}
+                {payment.provider ? <div>Provedor: {getPaymentProviderLabel(payment.provider) ?? payment.provider}</div> : null}
                 {payment.externalRef ? <div>Referencia: {payment.externalRef}</div> : null}
               </div>
             </div>
@@ -93,8 +94,8 @@ export default function StaffPaymentDetailPage() {
               <div className="rounded-2xl border border-border bg-surface/70 p-4">
                 <div className="text-sm font-semibold text-text">Resumo do pedido</div>
                 <div className="mt-2 text-sm text-text">
-                  <div>Status: {payment.order.status}</div>
-                  <div>Pagamento: {payment.order.paymentStatus}</div>
+                  <div>Status: {getOrderStatusInfo(payment.order.status).label}</div>
+                  <div>Pagamento: {getPaymentStatusInfo(payment.order.paymentStatus).label}</div>
                   <div>Total: {formatPrice(payment.order.total)}</div>
                   <div>Data: {formatDate(payment.order.createdAt)}</div>
                 </div>

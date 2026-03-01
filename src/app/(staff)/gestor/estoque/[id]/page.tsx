@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { StaffShell } from "@/components/staff-shell";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +17,7 @@ import {
   type StockMovement
 } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 
 const movementListSchema = ListResponseSchema(StockMovementSchema);
@@ -24,6 +25,37 @@ const movementListSchema = ListResponseSchema(StockMovementSchema);
 type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 
 type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: string };
+
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getVariantCostPrice(item: StockItem | null): number | null {
+  const variant = item?.variant;
+  if (!variant) return null;
+  const direct = toNumber(variant.costPrice);
+  if (direct !== null) return direct;
+  if (!variant.attributes || typeof variant.attributes !== "object" || Array.isArray(variant.attributes)) return null;
+  const attrs = variant.attributes as Record<string, unknown>;
+  return toNumber(attrs.costPrice ?? attrs.cost ?? attrs.cmv);
+}
+
+function getMarginPercent(price: unknown, costPrice: number | null): string {
+  const sale = toNumber(price);
+  if (sale === null || sale <= 0 || costPrice === null) return "N/A";
+  return `${(((sale - costPrice) / sale) * 100).toFixed(1)}%`;
+}
+
+function getStockStatus(onHand: number) {
+  if (onHand <= 0) return { label: "Ruptura", variant: "warning" as const };
+  if (onHand <= 5) return { label: "Em risco", variant: "neutral" as const };
+  return { label: "Saudavel", variant: "success" as const };
+}
 
 export default function StaffStockDetailPage() {
   const auth = useAuth();
@@ -126,8 +158,12 @@ export default function StaffStockDetailPage() {
     }
   };
 
+  const costPrice = getVariantCostPrice(item);
+  const margin = getMarginPercent(item?.variant?.price, costPrice);
+  const stockStatus = item ? getStockStatus(item.onHand) : null;
+
   return (
-    <StaffShell title="Ajustar estoque" subtitle="Registre entradas e saídas sem complicação.">
+    <StaffShell title="Ajustar estoque" subtitle="Registre entradas, saidas e motivo de movimentacao.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
         <Link href="/gestor/estoque" className="text-sm text-primary">
           Voltar para estoque
@@ -148,13 +184,20 @@ export default function StaffStockDetailPage() {
                 <div>Variante: {item.variant?.name ?? item.variantId}</div>
                 <div>SKU: {item.variant?.sku ?? "-"}</div>
                 <div>Quantidade atual: {item.onHand}</div>
+                <div>CMV: {costPrice === null ? "N/A" : formatPrice(costPrice)}</div>
+                <div>Margem estimada: {margin}</div>
                 <div>Atualizado: {formatDate(item.updatedAt)}</div>
+                {stockStatus ? (
+                  <div className="mt-2">
+                    <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+                  </div>
+                ) : null}
               </div>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
               <div className="rounded-2xl border border-border bg-surface/70 p-4">
-                <div className="text-sm font-semibold text-text">Historico de ajustes</div>
+                <div className="text-sm font-semibold text-text">Historico de movimentacoes</div>
                 {movementState.status === "loading" ? (
                   <div className="mt-3 space-y-3">
                     <Skeleton className="h-6 w-full" />

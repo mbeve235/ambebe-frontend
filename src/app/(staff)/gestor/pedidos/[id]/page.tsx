@@ -19,6 +19,7 @@ import {
   ListResponseSchema,
   OrderItemSchema,
   StaffOrderSchema,
+  type Address,
   type OrderItem,
   type StaffOrder
 } from "@/lib/api-schema";
@@ -35,6 +36,38 @@ const paymentStatusOptions = ["PENDING", "AUTHORIZED", "CAPTURED", "FAILED", "RE
 type LoadState = { status: "loading" | "ready" | "error"; error?: string };
 
 type ActionState = { status: "idle" | "loading" | "success" | "error"; error?: string };
+
+function toNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function getItemCostPriceSnapshot(attributesSnapshot: unknown): number | null {
+  if (!attributesSnapshot || typeof attributesSnapshot !== "object" || Array.isArray(attributesSnapshot)) return null;
+  const source = attributesSnapshot as Record<string, unknown>;
+  return toNumber(source.costPriceSnapshot ?? source.costPrice ?? source.cost ?? source.cmv);
+}
+
+function getMarginPercent(price: unknown, costPrice: number | null): string {
+  const sale = toNumber(price);
+  if (sale === null || sale <= 0 || costPrice === null) return "N/A";
+  return `${(((sale - costPrice) / sale) * 100).toFixed(1)}%`;
+}
+
+function getPrimaryAddress(addresses?: Address[]) {
+  if (!addresses?.length) return null;
+  return addresses.find((address) => address.isDefault) ?? addresses[0];
+}
+
+function formatAddress(address?: Address | null) {
+  if (!address) return "Nao informado";
+  const parts = [address.line1, address.line2, `${address.city}, ${address.state}`, address.postalCode, address.country].filter(Boolean);
+  return parts.join(" | ");
+}
 
 export default function StaffOrderDetailPage() {
   const auth = useAuth();
@@ -151,8 +184,15 @@ export default function StaffOrderDetailPage() {
     }
   };
 
+  const primaryAddress = getPrimaryAddress(order?.user?.addresses);
+  const fallbackPhone = order?.user?.addresses?.find((address) => Boolean(address.phone))?.phone;
+  const customerPhone = primaryAddress?.phone ?? fallbackPhone ?? "Nao informado";
+  const customerAddress = formatAddress(primaryAddress);
+  const customerSince = order?.user?.createdAt ? formatDate(order.user.createdAt) : "Nao informado";
+  const addressCount = order?.user?.addresses?.length ?? 0;
+
   return (
-    <StaffShell title="Detalhe do pedido" subtitle="Atualize status e acompanhe itens e pagamento.">
+    <StaffShell title="Detalhe do pedido" subtitle="Atualize status, itens e informacoes de pagamento.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
         <Link href="/gestor/pedidos" className="text-sm text-primary">
           Voltar para pedidos
@@ -167,6 +207,18 @@ export default function StaffOrderDetailPage() {
           <div className="mt-4 text-sm text-amber-600">{state.error}</div>
         ) : order ? (
           <div className="mt-4 space-y-6">
+            <div className="rounded-2xl border border-border bg-surface/70 p-4">
+              <div className="text-sm font-semibold text-text">Cliente</div>
+              <div className="mt-2 text-sm text-text">
+                <div>Nome: {order.user?.name || "Nao informado"}</div>
+                <div>Email: {order.user?.email || "Nao informado"}</div>
+                <div>ID do cliente: {order.user?.id || "Nao informado"}</div>
+                <div>Telefone: {customerPhone}</div>
+                <div>Endereco principal: {customerAddress}</div>
+                <div>Enderecos cadastrados: {addressCount}</div>
+                <div>Conta do cliente: {customerSince}</div>
+              </div>
+            </div>
             <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
               <div className="rounded-2xl border border-border bg-surface/70 p-4">
                 <div className="text-sm font-semibold text-text">Resumo</div>
@@ -187,7 +239,7 @@ export default function StaffOrderDetailPage() {
                 </div>
               </div>
               <div className="rounded-2xl border border-border bg-surface/70 p-4">
-                <div className="text-sm font-semibold text-text">Acoes</div>
+                <div className="text-sm font-semibold text-text">Acoes do pedido</div>
                 <div className="mt-3 space-y-3">
                   <Select value={status} onValueChange={(value) => setStatus(value as (typeof orderStatusOptions)[number])}>
                     <SelectTrigger>
@@ -248,21 +300,28 @@ export default function StaffOrderDetailPage() {
                 <div className="mt-3 text-sm text-amber-600">{itemsState.error}</div>
               ) : items.length ? (
                 <div className="mt-3 space-y-3">
-                  {items.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-border bg-surface/80 p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-text">{item.nameSnapshot}</div>
-                          <div className="text-xs text-muted">SKU: {item.skuSnapshot}</div>
-                          <div className="text-xs text-muted">Quantidade: {item.quantity}</div>
-                        </div>
-                        <div className="text-right text-xs text-muted">
-                          <div>Preco unitario: {formatPrice(item.priceSnapshot)}</div>
-                          <div>Total: {formatPrice(Number(item.priceSnapshot) * item.quantity)}</div>
+                  {items.map((item) => {
+                    const costPrice = getItemCostPriceSnapshot(item.attributesSnapshot);
+                    const margin = getMarginPercent(item.priceSnapshot, costPrice);
+                    return (
+                      <div key={item.id} className="rounded-2xl border border-border bg-surface/80 p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-text">{item.nameSnapshot}</div>
+                            <div className="text-xs text-muted">SKU: {item.skuSnapshot}</div>
+                            <div className="text-xs text-muted">Quantidade: {item.quantity}</div>
+                            <div className="text-xs text-muted">
+                              CMV snapshot: {costPrice === null ? "N/A" : formatPrice(costPrice)} | Margem estimada: {margin}
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-muted">
+                            <div>Preco unitario: {formatPrice(item.priceSnapshot)}</div>
+                            <div>Total: {formatPrice(Number(item.priceSnapshot) * item.quantity)}</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="mt-3 text-sm text-muted">Nenhum item encontrado.</div>
@@ -273,7 +332,7 @@ export default function StaffOrderDetailPage() {
               <div className="text-sm font-semibold text-text">Pagamento</div>
               {order.payment ? (
                 <div className="mt-2 text-sm text-text">
-                  <div>Status: {order.payment.status}</div>
+                  <div>Status: {getPaymentStatusInfo(order.payment.status).label}</div>
                   <div>Valor: {formatPrice(order.payment.amount)}</div>
                   {order.payment.provider ? (
                     <div>Provedor: {getPaymentProviderLabel(order.payment.provider) ?? order.payment.provider}</div>

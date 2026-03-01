@@ -478,7 +478,7 @@ export default function StaffProductDetailPage() {
   };
 
   return (
-    <StaffShell title="Detalhe do produto" subtitle="Atualize dados, categorias, variantes e imagens.">
+    <StaffShell title="Detalhe do produto" subtitle="Atualize dados, categorias, variantes, CMV e imagens.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
         <Link href="/gestor/produtos" className="text-sm text-primary">
           Voltar para produtos

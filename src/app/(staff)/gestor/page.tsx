@@ -119,7 +119,7 @@ function StaffOverviewPageContent() {
   }, [data]);
 
   return (
-    <StaffShell title="Cockpit de gestao" subtitle="Operacional, tatico e financeiro no mesmo fluxo de decisao.">
+    <StaffShell title="Cockpit de gestao" subtitle="Visao operacional, comercial e financeira em um unico fluxo.">
       <section className="space-y-4">
         <div className="rounded-2xl border border-border bg-surface/80 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -189,7 +189,7 @@ function StaffOverviewPageContent() {
           <section className="space-y-4">
             <div className="text-sm font-semibold text-text">2) Saude comercial</div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Metric title="Receita reconhecida" value={formatPrice(data.salesHealth.recognizedRevenue)} helper={`Delta vs periodo anterior: ${data.salesHealth.deltaPct >= 0 ? "+" : ""}${data.salesHealth.deltaPct.toFixed(1)}%`} />
+              <Metric title="Receita reconhecida" value={formatPrice(data.salesHealth.recognizedRevenue)} helper={`Variacao vs periodo anterior: ${data.salesHealth.deltaPct >= 0 ? "+" : ""}${data.salesHealth.deltaPct.toFixed(1)}%`} />
               <Metric title="Receita autorizada (nao reconhecida)" value={formatPrice(data.salesHealth.authorizedRevenue)} />
               <Metric title="Ticket medio reconhecido" value={formatPrice(data.salesHealth.avgTicketRecognized)} />
               <Metric title="Taxa de sucesso de pedidos" value={`${data.salesHealth.successRatePct.toFixed(1)}%`} />
@@ -243,7 +243,7 @@ function StaffOverviewPageContent() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Link href="/gestor/pedidos?preset=pending"><Metric title="Pendentes" value={String(data.operations.pendingOrders)} /></Link>
               <Link href="/gestor/pedidos?preset=delayed"><Metric title="Atrasados" value={String(data.operations.delayedOrders)} /></Link>
-              <Link href="/gestor/pedidos?preset=problem"><Metric title="Com problema" value={String(data.operations.problemOrders)} /></Link>
+              <Link href="/gestor/pedidos?preset=problem"><Metric title="Com problemas" value={String(data.operations.problemOrders)} /></Link>
               <Link href="/gestor/pedidos?paymentStatus=REFUNDED"><Metric title="Reembolsos" value={formatPrice(data.operations.refunds.total)} helper={`${data.operations.refunds.count} ocorrencias`} /></Link>
             </div>
             <div className="grid gap-4 lg:grid-cols-3">
@@ -283,7 +283,7 @@ function StaffOverviewPageContent() {
               <Metric title="Valor de estoque" value={formatPrice(data.inventory.totalStockValue)} />
               <Link href="/gestor/estoque"><Metric title="Ruptura critica" value={String(data.inventory.criticalCount)} /></Link>
               <Link href="/gestor/estoque"><Metric title="Estoque em risco" value={String(data.inventory.warningCount)} /></Link>
-              <Link href={`/gestor/produtos?preset=low-performance&window=${window}`}><Metric title="Alta saida (24h)" value={String(data.inventory.fastMovingCount)} /></Link>
+              <Link href="/gestor/estoque"><Metric title="Alta saida (24h)" value={String(data.inventory.fastMovingCount)} helper="Priorize reposicao nos itens com maior giro" /></Link>
               <Metric title="Limiar dinamico 24h" value={`${data.inventory.fastMovingThreshold24h} un`} />
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
@@ -314,7 +314,7 @@ function StaffOverviewPageContent() {
               <Metric title="Receita hoje" value={formatPrice(data.finance.revenueToday)} />
               <Metric title="Receita semana" value={formatPrice(data.finance.revenueWeek)} />
               <Metric title="Receita mes" value={formatPrice(data.finance.revenueMonth)} />
-              <Metric title="Lucro liquido realizado (mes)" value={formatPrice(data.finance.profitModel.realizedNetProfitMonth)} />
+              <Metric title="Lucro liquido realizado (mes)" value={formatPrice(data.finance.profitModel.realizedNetProfitMonth)} helper="Baseado em pedidos reconhecidos no mes" />
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Metric title="Lucro bruto (mes)" value={formatPrice(data.finance.grossEstimateMonth)} />
@@ -328,6 +328,13 @@ function StaffOverviewPageContent() {
               <Metric title="Crescimento recente" value={`${data.finance.profitModel.recentGrowthPct.toFixed(1)}%`} />
               <Metric title="Cancelamento medio" value={`${data.finance.profitModel.averageCancelRatePct.toFixed(1)}%`} />
             </div>
+            {data.meta.assumptions ? (
+              <div className="rounded-2xl border border-border bg-surface/80 p-4 text-xs text-muted">
+                Estimativas financeiras usam: imposto {(data.meta.assumptions.taxRate * 100).toFixed(1)}%, despesa operacional{" "}
+                {(data.meta.assumptions.operatingExpenseRate * 100).toFixed(1)}%, frete subsidiado por pedido{" "}
+                {formatPrice(data.meta.assumptions.freightSubsidyPerOrder)}.
+              </div>
+            ) : null}
           </section>
 
           <section className="space-y-4">
@@ -348,7 +355,7 @@ function StaffOverviewPageContent() {
                   {data.products.lowPerformance.slice(0, 8).map((product) => (
                     <Link key={product.id} href={`/gestor/produtos?productId=${product.id}`} className="block rounded-xl border border-border/70 px-3 py-2 text-xs"><div className="font-semibold text-text">{product.name}</div><div className="text-muted">Nenhuma venda no recorte.</div></Link>
                   ))}
-                  {!data.products.lowPerformance.length ? <div className="text-xs text-muted">Sem produtos zerados no periodo.</div> : null}
+                  {!data.products.lowPerformance.length ? <div className="text-xs text-muted">Nenhum produto sem venda no periodo.</div> : null}
                 </div>
               </div>
             </div>

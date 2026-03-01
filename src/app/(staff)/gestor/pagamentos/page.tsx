@@ -9,6 +9,7 @@ import { api, getApiErrorMessage } from "@/lib/api";
 import { ListResponseSchema, PaymentWithOrderSchema, type PaymentWithOrder } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
 import { formatDate, formatPrice } from "@/lib/format";
+import { getPaymentProviderLabel, getPaymentStatusInfo } from "@/lib/order-ui";
 import { useAuth } from "@/hooks/use-auth";
 
 const paymentListSchema = ListResponseSchema(PaymentWithOrderSchema);
@@ -49,9 +50,9 @@ export default function StaffPaymentsPage() {
   }, [auth.status, fetchPayments]);
 
   return (
-    <StaffShell title="Pagamentos" subtitle="Monitoramento de pagamentos por pedido.">
+    <StaffShell title="Pagamentos" subtitle="Monitore transacoes e conciliacao por pedido.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
-        <div className="text-sm font-semibold text-text">Transacoes</div>
+        <div className="text-sm font-semibold text-text">Transacoes de pagamento</div>
         {state.status === "loading" ? (
           <div className="mt-4 space-y-3">
             <Skeleton className="h-6 w-full" />
@@ -62,7 +63,7 @@ export default function StaffPaymentsPage() {
         ) : payments.length ? (
           <div className="mt-4 space-y-4">
             {payments.map((payment) => {
-              const badgeVariant = payment.status === "CAPTURED" ? "success" : "warning";
+              const paymentInfo = getPaymentStatusInfo(payment.status);
               return (
                 <div key={payment.id} className="rounded-2xl border border-border bg-surface/70 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
@@ -70,12 +71,15 @@ export default function StaffPaymentsPage() {
                       <div className="text-sm font-semibold text-text">Pagamento {payment.id.slice(0, 8)}</div>
                       <div className="text-xs text-muted">Pedido: {payment.order?.id ?? payment.orderId}</div>
                       <div className="text-xs text-muted">Valor: {formatPrice(payment.amount)}</div>
+                      <div className="text-xs text-muted">
+                        Provedor: {getPaymentProviderLabel(payment.provider) ?? payment.provider ?? "Nao informado"}
+                      </div>
                       <div className="text-xs text-muted">Data: {formatDate(payment.createdAt)}</div>
                       <Link href={`/gestor/pagamentos/${payment.id}`} className="text-xs text-primary">
                         Ver detalhes
                       </Link>
                     </div>
-                    <Badge variant={badgeVariant}>{payment.status}</Badge>
+                    <Badge variant={paymentInfo.variant}>{paymentInfo.label}</Badge>
                   </div>
                 </div>
               );

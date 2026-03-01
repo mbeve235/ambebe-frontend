@@ -199,7 +199,9 @@ export const RoleWithPermissionsSchema = RoleSchema.extend({
 export const UserSummarySchema = z.object({
   id: z.string(),
   email: z.string(),
-  name: z.string().nullable().optional()
+  name: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+  addresses: z.array(AddressSchema).optional()
 });
 
 export const SupportReplySchema = z.object({

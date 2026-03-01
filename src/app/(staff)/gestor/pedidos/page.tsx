@@ -33,6 +33,7 @@ function StaffOrdersPageContent() {
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState<StaffOrder[]>([]);
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [orderFilter, setOrderFilter] = useState("");
   const [emailFilter, setEmailFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -49,7 +50,7 @@ function StaffOrdersPageContent() {
     return "Other";
   };
 
-  const fetchOrders = useCallback(async (filters?: { email?: string; status?: string; paymentStatus?: string }) => {
+  const fetchOrders = useCallback(async (filters?: { orderId?: string; email?: string; status?: string; paymentStatus?: string }) => {
     const token = getAccessToken();
     if (!token) {
       setState({ status: "error", error: "Token ausente" });
@@ -75,13 +76,16 @@ function StaffOrdersPageContent() {
 
   useEffect(() => {
     if (auth.status !== "authenticated") return;
+    const orderId = searchParams.get("orderId") || "";
     const email = searchParams.get("email") || "";
     const status = searchParams.get("status") || "all";
     const paymentStatus = searchParams.get("paymentStatus") || "all";
+    setOrderFilter(orderId);
     setEmailFilter(email);
     setStatusFilter(status);
     setPaymentFilter(paymentStatus);
     fetchOrders({
+      orderId: orderId.trim() || undefined,
       email: email.trim() || undefined,
       status: status === "all" ? undefined : status,
       paymentStatus: paymentStatus === "all" ? undefined : paymentStatus
@@ -118,6 +122,10 @@ function StaffOrdersPageContent() {
   const handleFilter = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const next = new URLSearchParams(searchParams.toString());
+    const orderId = orderFilter.trim();
+    if (orderId) next.set("orderId", orderId);
+    else next.delete("orderId");
+
     const email = emailFilter.trim();
     if (email) next.set("email", email);
     else next.delete("email");
@@ -132,6 +140,7 @@ function StaffOrdersPageContent() {
   };
 
   const handleClear = () => {
+    setOrderFilter("");
     setEmailFilter("");
     setStatusFilter("all");
     setPaymentFilter("all");
@@ -139,21 +148,30 @@ function StaffOrdersPageContent() {
   };
 
   return (
-    <StaffShell title="Pedidos" subtitle="Acompanhe pedidos e status de pagamento.">
+    <StaffShell title="Pedidos" subtitle="Acompanhe pedidos, pagamento e prioridades operacionais.">
       <section className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
         <div className="text-sm font-semibold text-text">Filtros</div>
-        {preset || channelFilter ? (
+        {preset || channelFilter || orderFilter ? (
           <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-text">
-            Contexto ativo:
+            Contexto aplicado:
             {preset ? ` preset=${preset}` : ""}
             {channelFilter ? ` canal=${channelFilter}` : ""}
+            {orderFilter ? ` pedido=${orderFilter}` : ""}
             {" | "}
             <Link href="/gestor/pedidos" className="text-primary">
-              limpar contexto
+              Limpar contexto
             </Link>
           </div>
         ) : null}
         <form className="mt-3 flex flex-wrap items-end gap-3" onSubmit={handleFilter}>
+          <div className="min-w-[220px]">
+            <div className="text-xs text-muted">Pedido (ID)</div>
+            <Input
+              value={orderFilter}
+              onChange={(event) => setOrderFilter(event.target.value)}
+              placeholder="Ex: 38f96d6b ou UUID completo"
+            />
+          </div>
           <div className="min-w-[220px]">
             <div className="text-xs text-muted">Email do cliente</div>
             <Input
@@ -208,7 +226,7 @@ function StaffOrdersPageContent() {
           </div>
         ) : state.status === "error" ? (
           <div className="mt-4 text-sm text-amber-600">{state.error}</div>
-        ) : orders.length ? (
+        ) : sortedOrders.length ? (
           <div className="mt-4 space-y-4">
             {sortedOrders.map((order) => {
               const statusInfo = getOrderStatusInfo(order.status);

@@ -140,7 +140,7 @@ export default function StaffCategoriesPage() {
   };
 
   return (
-    <StaffShell title="Categorias" subtitle="Crie e mantenha as categorias do catalogo.">
+    <StaffShell title="Categorias" subtitle="Crie, organize e mantenha as categorias do catalogo.">
       <section className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <div className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
           <div className="text-sm font-semibold text-text">Categorias cadastradas</div>

@@ -272,19 +272,19 @@ function StaffProductsPageContent() {
   };
 
   return (
-    <StaffShell title="Produtos" subtitle="Gerencie catalogo e variantes com o backend real.">
+    <StaffShell title="Produtos" subtitle="Gerencie catalogo, variantes e estrutura de CMV.">
       <section className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="rounded-2xl border border-border bg-surface/80 p-6 shadow-soft">
           <div className="text-sm font-semibold text-text">Produtos cadastrados</div>
           {preset || categoryFilter || productIdFilter ? (
             <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-text">
-              Contexto ativo:
+              Contexto aplicado:
               {preset ? ` preset=${preset}` : ""}
               {categoryFilter ? ` categoria=${categoryFilter}` : ""}
               {productIdFilter ? ` produto=${productIdFilter.slice(0, 8)}` : ""}
               {" | "}
               <Link href="/gestor/produtos" className="text-primary">
-                limpar contexto
+                Limpar contexto
               </Link>
             </div>
           ) : null}
