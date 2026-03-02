@@ -370,7 +370,7 @@ export default function StaffOrderDetailPage() {
                     <div key={event.id} className="rounded-xl border border-border/70 px-3 py-2 text-xs">
                       <div className="font-semibold text-text">
                         {event.type === "order.status_changed" ? "Status do pedido" : "Status de pagamento"}:{" "}
-                        {event.from || "N/A"} -> {event.to || "N/A"}
+                        {event.from || "N/A"} {"->"} {event.to || "N/A"}
                       </div>
                       <div className="text-muted">
                         {formatDate(event.createdAt)} | {event.actor?.name || event.actor?.email || "Sistema"}
