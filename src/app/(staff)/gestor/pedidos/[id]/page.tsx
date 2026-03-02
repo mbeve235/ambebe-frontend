@@ -69,6 +69,19 @@ function formatAddress(address?: Address | null) {
   return parts.join(" | ");
 }
 
+function formatShippingSnapshot(snapshot: unknown) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return "Nao informado";
+  const source = snapshot as Record<string, unknown>;
+  const parts = [
+    typeof source.line1 === "string" ? source.line1 : null,
+    typeof source.line2 === "string" ? source.line2 : null,
+    typeof source.city === "string" && typeof source.state === "string" ? `${source.city}, ${source.state}` : null,
+    typeof source.postalCode === "string" ? source.postalCode : null,
+    typeof source.country === "string" ? source.country : null
+  ].filter(Boolean);
+  return parts.length ? parts.join(" | ") : "Nao informado";
+}
+
 export default function StaffOrderDetailPage() {
   const auth = useAuth();
   const params = useParams();
@@ -190,6 +203,8 @@ export default function StaffOrderDetailPage() {
   const customerAddress = formatAddress(primaryAddress);
   const customerSince = order?.user?.createdAt ? formatDate(order.user.createdAt) : "Nao informado";
   const addressCount = order?.user?.addresses?.length ?? 0;
+  const shippingSnapshot = formatShippingSnapshot(order?.shippingAddressSnapshot);
+  const statusHistory = order?.statusHistory ?? [];
 
   return (
     <StaffShell title="Detalhe do pedido" subtitle="Atualize status, itens e informacoes de pagamento.">
@@ -210,11 +225,12 @@ export default function StaffOrderDetailPage() {
             <div className="rounded-2xl border border-border bg-surface/70 p-4">
               <div className="text-sm font-semibold text-text">Cliente</div>
               <div className="mt-2 text-sm text-text">
-                <div>Nome: {order.user?.name || "Nao informado"}</div>
-                <div>Email: {order.user?.email || "Nao informado"}</div>
+                <div>Nome: {order.customerNameSnapshot || order.user?.name || "Nao informado"}</div>
+                <div>Email: {order.customerEmailSnapshot || order.user?.email || "Nao informado"}</div>
                 <div>ID do cliente: {order.user?.id || "Nao informado"}</div>
-                <div>Telefone: {customerPhone}</div>
+                <div>Telefone: {order.customerPhoneSnapshot || customerPhone}</div>
                 <div>Endereco principal: {customerAddress}</div>
+                <div>Endereco no pedido: {shippingSnapshot}</div>
                 <div>Enderecos cadastrados: {addressCount}</div>
                 <div>Conta do cliente: {customerSince}</div>
               </div>
@@ -223,10 +239,12 @@ export default function StaffOrderDetailPage() {
               <div className="rounded-2xl border border-border bg-surface/70 p-4">
                 <div className="text-sm font-semibold text-text">Resumo</div>
                 <div className="mt-2 text-sm text-text">
-                  <div>Pedido: {order.id}</div>
+                  <div>Pedido: {order.orderNumber || order.id}</div>
+                  <div>ID tecnico: {order.id}</div>
                   <div>Cliente: {order.user?.name || order.user?.email || order.userId}</div>
                   <div>Itens: {getOrderItemCount(order.items)}</div>
                   <div>Data: {formatDate(order.createdAt)}</div>
+                  <div>Ultima atualizacao: {formatDate(order.updatedAt)}</div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge variant={getOrderStatusInfo(order.status).variant}>
                       {getOrderStatusInfo(order.status).label}
@@ -341,6 +359,27 @@ export default function StaffOrderDetailPage() {
                 </div>
               ) : (
                 <div className="mt-2 text-sm text-muted">Sem pagamento associado.</div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-surface/70 p-4">
+              <div className="text-sm font-semibold text-text">Historico de status</div>
+              {statusHistory.length ? (
+                <div className="mt-3 space-y-2">
+                  {statusHistory.map((event) => (
+                    <div key={event.id} className="rounded-xl border border-border/70 px-3 py-2 text-xs">
+                      <div className="font-semibold text-text">
+                        {event.type === "order.status_changed" ? "Status do pedido" : "Status de pagamento"}:{" "}
+                        {event.from || "N/A"} -> {event.to || "N/A"}
+                      </div>
+                      <div className="text-muted">
+                        {formatDate(event.createdAt)} | {event.actor?.name || event.actor?.email || "Sistema"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-2 text-sm text-muted">Sem alteracoes de status registradas.</div>
               )}
             </div>
           </div>

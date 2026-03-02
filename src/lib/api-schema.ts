@@ -139,6 +139,7 @@ export const PaymentSchema = z.object({
 
 export const OrderSchema = z.object({
   id: z.string(),
+  orderNumber: z.string().nullable().optional(),
   userId: z.string(),
   status: z.string(),
   total: DecimalSchema,
@@ -146,6 +147,10 @@ export const OrderSchema = z.object({
   couponCode: z.string().nullable().optional(),
   currency: z.string(),
   paymentStatus: z.string(),
+  customerNameSnapshot: z.string().nullable().optional(),
+  customerEmailSnapshot: z.string().nullable().optional(),
+  customerPhoneSnapshot: z.string().nullable().optional(),
+  shippingAddressSnapshot: z.unknown().optional(),
   items: z.array(OrderItemSchema).optional().default([]),
   payment: PaymentSchema.nullable().optional(),
   createdAt: z.string(),
@@ -310,7 +315,19 @@ export const StockMovementSchema = z.object({
 });
 
 export const StaffOrderSchema = OrderSchema.extend({
-  user: UserSummarySchema.optional()
+  user: UserSummarySchema.optional(),
+  statusHistory: z
+    .array(
+      z.object({
+        id: z.string(),
+        type: z.string(),
+        from: z.string().nullable().optional(),
+        to: z.string().nullable().optional(),
+        createdAt: z.string(),
+        actor: UserSummarySchema.nullable().optional()
+      })
+    )
+    .optional()
 });
 
 export const PaymentWithOrderSchema = PaymentSchema.extend({
