@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Header, type HeaderNotificationItem, type HeaderNotifications } from "@/components/header";
 import { RoleGuard } from "@/components/role-guard";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { useCartCount } from "@/hooks/use-cart";
 import { api, getApiErrorMessage } from "@/lib/api";
