@@ -24,6 +24,11 @@ function VerifyEmailPageContent() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
+  const [resendStatus, setResendStatus] = useState<Status>("idle");
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
 
@@ -67,6 +72,14 @@ function VerifyEmailPageContent() {
     };
   }, [router, token]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormStatus("loading");
@@ -95,6 +108,37 @@ function VerifyEmailPageContent() {
       setFormError(getApiErrorMessage(err));
     }
   };
+
+  const handleResend = async () => {
+    if (!email.trim()) {
+      setResendStatus("error");
+      setResendError("Informe o email para receber um novo codigo.");
+      setResendSuccess(null);
+      return;
+    }
+
+    setResendStatus("loading");
+    setResendError(null);
+    setResendSuccess(null);
+
+    try {
+      const response = await api.post("/auth/resend-verification", { email });
+      const message =
+        typeof response.data?.message === "string"
+          ? response.data.message
+          : "Se o email existir, reenviamos um novo codigo de confirmacao.";
+      setResendStatus("success");
+      setResendSuccess(message);
+      setResendCooldown(120);
+    } catch (err) {
+      setResendStatus("error");
+      setResendError(getApiErrorMessage(err));
+    }
+  };
+
+  const cooldownLabel = resendCooldown
+    ? `${Math.floor(resendCooldown / 60)}:${String(resendCooldown % 60).padStart(2, "0")}`
+    : null;
 
   return (
     <main className="mx-auto mt-10 w-full max-w-md rounded-3xl border border-border bg-surface/80 p-8 shadow-soft">
@@ -142,6 +186,33 @@ function VerifyEmailPageContent() {
           </div>
         ) : null}
       </form>
+
+      <div className="mt-6 space-y-3 rounded-2xl border border-border bg-surface/60 px-4 py-4 text-sm text-text">
+        <p className="text-muted">Nao recebeu o codigo? Podemos enviar novamente.</p>
+        <Button
+          type="button"
+          className="w-full"
+          variant="outline"
+          onClick={handleResend}
+          disabled={resendStatus === "loading" || resendCooldown > 0}
+        >
+          {resendStatus === "loading"
+            ? "Enviando..."
+            : resendCooldown > 0 && cooldownLabel
+              ? `Aguarde ${cooldownLabel}`
+              : "Reenviar codigo"}
+        </Button>
+        {resendStatus === "success" && resendSuccess ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
+            {resendSuccess}
+          </div>
+        ) : null}
+        {resendStatus === "error" && resendError ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+            {resendError}
+          </div>
+        ) : null}
+      </div>
 
       <div className="mt-6 text-center text-sm text-muted">
         <Link href="/login" className="text-primary">

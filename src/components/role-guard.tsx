@@ -1,7 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { ReactNode, useMemo, useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AuthState } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -31,20 +31,31 @@ const getLoginTarget = (allowedRoles: string[]) => {
 
 export function RoleGuard({ auth, allowedRoles, children }: RoleGuardProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const role = auth.role ?? "";
   const hasAccess = auth.status === "authenticated" && auth.user && allowedRoles.includes(role);
+  const loginTarget = useMemo(() => {
+    const baseTarget = getLoginTarget(allowedRoles);
+    if (!pathname) return baseTarget;
+
+    const query = searchParams?.toString();
+    const returnTo = `${pathname}${query ? `?${query}` : ""}`;
+    const separator = baseTarget.includes("?") ? "&" : "?";
+    return `${baseTarget}${separator}returnTo=${encodeURIComponent(returnTo)}`;
+  }, [allowedRoles, pathname, searchParams]);
 
   useEffect(() => {
     if (auth.status === "loading") return;
     if (hasAccess) return;
 
     if (auth.status !== "authenticated" || !auth.user) {
-      router.replace(getLoginTarget(allowedRoles));
+      router.replace(loginTarget);
       return;
     }
 
     router.replace(homeTargets[role] ?? "/");
-  }, [auth.status, auth.user, allowedRoles, hasAccess, role, router]);
+  }, [auth.status, auth.user, hasAccess, loginTarget, role, router]);
 
   if (auth.status === "loading") {
     return (

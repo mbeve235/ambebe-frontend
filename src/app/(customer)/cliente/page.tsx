@@ -19,6 +19,7 @@ import {
 import { getAccessToken } from "@/lib/auth";
 import { trackEvent } from "@/lib/analytics";
 import { formatDate, formatPrice } from "@/lib/format";
+import { getOrderDisplayNumber } from "@/lib/order-ui";
 import { useAuth } from "@/hooks/use-auth";
 
 const addressListSchema = ListResponseSchema(AddressSchema);
@@ -292,7 +293,7 @@ export default function CustomerHomePage() {
             <div className="mt-4 text-sm text-amber-600">{ordersState.error}</div>
           ) : latestOrder ? (
             <div className="mt-4 space-y-1 text-sm text-text">
-              <div>Pedido: {latestOrder.id.slice(0, 8)}</div>
+              <div>Pedido: {getOrderDisplayNumber(latestOrder)}</div>
               <div>Status: {latestOrder.status}</div>
               <div>Total: {formatPrice(latestOrder.total)}</div>
               <div>Data: {formatDate(latestOrder.createdAt)}</div>

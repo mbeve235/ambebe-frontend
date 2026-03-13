@@ -28,7 +28,7 @@ import {
 } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
 import { formatPrice } from "@/lib/format";
-import { paymentProviders } from "@/lib/order-ui";
+import { getOrderDisplayNumber, paymentProviders } from "@/lib/order-ui";
 import { buildWhatsappOrderMessage, buildWhatsappUrl } from "@/lib/whatsapp";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -540,7 +540,7 @@ const [checkoutOrder, setCheckoutOrder] = useState<Order | null>(null);
           {checkoutState.status === "success" && checkoutOrder ? (
             <div className="mt-3 space-y-2 text-xs text-success">
               <div>
-                Pedido criado: {checkoutOrder.id.slice(0, 8)} (status {checkoutOrder.status})
+                Pedido criado: {getOrderDisplayNumber(checkoutOrder)} (status {checkoutOrder.status})
               </div>
               {checkoutOrder.payment?.status === "FAILED" ? (
                 <div className="text-amber-600">

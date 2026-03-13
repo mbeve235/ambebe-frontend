@@ -28,6 +28,7 @@ import { getAccessToken } from "@/lib/auth";
 import { formatDate, formatPrice } from "@/lib/format";
 import {
   getOrderItemCount,
+  getOrderDisplayNumber,
   getOrderStatusInfo,
   paymentProviders,
   getPaymentProviderLabel,
@@ -238,6 +239,8 @@ function CustomerOrderDetailPageContent() {
 
   const selectedProvider = paymentProviders.find((provider) => provider.value === paymentProvider);
   const providerUnavailable = selectedProvider ? !selectedProvider.available : false;
+  const canGeneratePayment =
+    order?.status === "PENDING" && (order.paymentStatus === "PENDING" || order.paymentStatus === "FAILED");
 
   return (
     <CustomerShell title="Detalhe do pedido" subtitle="Acompanhe itens e pagamento do pedido.">
@@ -256,7 +259,7 @@ function CustomerOrderDetailPageContent() {
         ) : order ? (
           <div className="mt-4 space-y-6">
             {(() => {
-              const orderNumber = order.id.slice(0, 8).toUpperCase();
+              const orderNumber = getOrderDisplayNumber(order);
               const statusInfo = getOrderStatusInfo(order.status);
               const paymentInfo = getPaymentStatusInfo(order.payment?.status ?? order.paymentStatus);
               const itemCount = getOrderItemCount(order.items);
@@ -271,7 +274,7 @@ function CustomerOrderDetailPageContent() {
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-2xl border border-border bg-surface/70 p-4">
                       <div className="text-xs text-muted">Pedido</div>
-                      <div className="mt-2 text-base font-semibold text-text">#{orderNumber}</div>
+                      <div className="mt-2 text-base font-semibold text-text">{orderNumber}</div>
                       <div className="text-xs text-muted">Criado: {formatDate(order.createdAt)}</div>
                       <div className="text-xs text-muted">Itens: {itemCount}</div>
                     </div>
@@ -389,68 +392,69 @@ function CustomerOrderDetailPageContent() {
               ) : (
                 <div className="mt-2 space-y-3 text-sm text-muted">
                   <div>Sem pagamento associado.</div>
-                  {order.paymentStatus === "PENDING" ? (
-                    <div>
-                      <div className="mb-3">
-                        <div className="text-xs text-muted">Metodo de pagamento</div>
-                        <div className="mt-2">
-                          <Select value={paymentProvider} onValueChange={setPaymentProvider}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Escolha o metodo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {paymentProviders.map((option) => (
-                                <SelectItem key={option.value} value={option.value} disabled={!option.available}>
-                                  <span className="flex items-center justify-between gap-2">
-                                    <span>{option.label}</span>
-                                    {!option.available && option.note ? (
-                                      <span className="text-xs text-amber-600">{option.note}</span>
-                                    ) : null}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {providerUnavailable ? (
-                          <div className="mt-2 text-xs text-amber-600">Metodo em desenvolvimento.</div>
-                        ) : paymentProvider === "MPESA" ? (
-                          <div className="mt-3 text-xs text-muted">
-                            <Input
-                              placeholder="Telefone M-PESA (ex: 25884...)"
-                              value={mpesaPhone}
-                              onChange={(event) => setMpesaPhone(event.target.value)}
-                            />
-                            <div className="mt-2">Se deixar vazio, vamos usar o telefone do endereco padrao.</div>
-                          </div>
-                        ) : paymentProvider === "COD" ? (
-                          <div className="mt-2 text-xs text-muted">
-                            Pagamento na entrega: voce paga quando receber o pedido.
-                          </div>
-                        ) : null}
+                </div>
+              )}
+
+              {canGeneratePayment ? (
+                <div className="mt-3 text-sm text-muted">
+                  <div className="mb-3">
+                    <div className="text-xs text-muted">Metodo de pagamento</div>
+                    <div className="mt-2">
+                      <Select value={paymentProvider} onValueChange={setPaymentProvider}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Escolha o metodo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentProviders.map((option) => (
+                            <SelectItem key={option.value} value={option.value} disabled={!option.available}>
+                              <span className="flex items-center justify-between gap-2">
+                                <span>{option.label}</span>
+                                {!option.available && option.note ? (
+                                  <span className="text-xs text-amber-600">{option.note}</span>
+                                ) : null}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {providerUnavailable ? (
+                      <div className="mt-2 text-xs text-amber-600">Metodo em desenvolvimento.</div>
+                    ) : paymentProvider === "MPESA" ? (
+                      <div className="mt-3 text-xs text-muted">
+                        <Input
+                          placeholder="Telefone M-PESA (ex: 25884...)"
+                          value={mpesaPhone}
+                          onChange={(event) => setMpesaPhone(event.target.value)}
+                        />
+                        <div className="mt-2">Se deixar vazio, vamos usar o telefone do endereco padrao.</div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCreatePayment}
-                        disabled={paymentState === "loading" || providerUnavailable}
-                      >
-                        {paymentState === "loading" ? "Gerando pagamento" : "Gerar pagamento"}
-                      </Button>
-                      {paymentState === "error" ? (
-                        <div className="mt-2 text-xs text-amber-600">{paymentError}</div>
-                      ) : null}
-                      {paymentState === "success" ? (
-                        <div className="mt-2 text-xs text-success">
-                          {paymentProvider === "MPESA"
-                            ? "Solicitacao M-PESA enviada. Confirme no telefone."
-                            : "Pagamento criado com sucesso."}
-                        </div>
-                      ) : null}
+                    ) : paymentProvider === "COD" ? (
+                      <div className="mt-2 text-xs text-muted">
+                        Pagamento na entrega: voce paga quando receber o pedido.
+                      </div>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCreatePayment}
+                    disabled={paymentState === "loading" || providerUnavailable}
+                  >
+                    {paymentState === "loading" ? "Gerando pagamento" : "Gerar pagamento"}
+                  </Button>
+                  {paymentState === "error" ? (
+                    <div className="mt-2 text-xs text-amber-600">{paymentError}</div>
+                  ) : null}
+                  {paymentState === "success" ? (
+                    <div className="mt-2 text-xs text-success">
+                      {paymentProvider === "MPESA"
+                        ? "Solicitacao M-PESA enviada. Confirme no telefone."
+                        : "Pagamento criado com sucesso."}
                     </div>
                   ) : null}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         ) : null}

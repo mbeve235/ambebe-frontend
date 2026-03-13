@@ -10,7 +10,7 @@ import { api, getApiErrorMessage } from "@/lib/api";
 import { AddressSchema, ListResponseSchema, OrderSchema, type Address, type Order } from "@/lib/api-schema";
 import { getAccessToken } from "@/lib/auth";
 import { formatDate, formatPrice } from "@/lib/format";
-import { getOrderItemCount, getOrderStatusInfo, getPaymentStatusInfo } from "@/lib/order-ui";
+import { getOrderDisplayNumber, getOrderItemCount, getOrderStatusInfo, getPaymentStatusInfo } from "@/lib/order-ui";
 import { buildWhatsappOrderMessage, buildWhatsappUrl } from "@/lib/whatsapp";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -150,7 +150,7 @@ export default function CustomerOrdersPage() {
           <div className="mt-4 space-y-4">
             {sortedOrders.map((order) => {
               const action = actionState[order.id];
-              const orderNumber = order.id.slice(0, 8).toUpperCase();
+              const orderNumber = getOrderDisplayNumber(order);
               const statusInfo = getOrderStatusInfo(order.status);
               const paymentInfo = getPaymentStatusInfo(order.paymentStatus);
               const itemCount = getOrderItemCount(order.items);
@@ -164,7 +164,7 @@ export default function CustomerOrdersPage() {
                 <div key={order.id} className="rounded-2xl border border-border bg-surface/70 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="text-sm font-semibold text-text">Pedido #{orderNumber}</div>
+                      <div className="text-sm font-semibold text-text">Pedido {orderNumber}</div>
                       <div className="mt-1 text-xs text-muted">Criado: {formatDate(order.createdAt)}</div>
                       <div className="text-xs text-muted">Itens: {itemCount}</div>
                       {order.couponCode ? <div className="text-xs text-muted">Cupom: {order.couponCode}</div> : null}

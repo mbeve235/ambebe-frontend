@@ -49,7 +49,7 @@ export type PaymentProviderOption = {
 export const paymentProviders: PaymentProviderOption[] = [
   { value: "STRIPE", label: "Stripe (Cartao bancario)", available: true },
   { value: "COD", label: "Pagamento na Entrega (Dinheiro)", available: true },
-  { value: "MPESA", label: "M-PESA", available: false, note: "Em desenvolvimento" },
+  { value: "MPESA", label: "M-PESA", available: true },
   { value: "EMOLA", label: "E-MOLA", available: false, note: "Em desenvolvimento" },
   { value: "PAYPAL", label: "PayPal", available: false, note: "Em desenvolvimento" }
 ];
@@ -58,4 +58,8 @@ export const getPaymentProviderLabel = (provider?: string | null) => {
   if (!provider) return null;
   const match = paymentProviders.find((item) => item.value === provider);
   return match ? match.label : provider;
+};
+
+export const getOrderDisplayNumber = (order: { orderNumber?: string | null; id: string }) => {
+  return order.orderNumber?.trim() || `#${order.id.slice(0, 8).toUpperCase()}`;
 };
