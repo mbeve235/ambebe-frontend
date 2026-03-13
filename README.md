@@ -43,4 +43,4 @@ Defina os valores reais:
 ## Observacoes
 
 - O arquivo `.env` nao deve ser versionado.
-- Para alterar backend por ambiente (preview/producao), configure valores diferentes no painel do Vercel.
+- Para alterar backend por ambiente (preview/producao), configure valores diferentes no painel do Vercel
